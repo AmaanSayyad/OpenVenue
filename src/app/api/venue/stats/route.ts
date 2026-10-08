@@ -46,7 +46,7 @@ export async function GET(req: Request) {
       );
     }
 
-    const [dynamic, candles] = await Promise.all([
+    const [dynamicResult, candleResult] = await Promise.allSettled([
       fetchRwaDynamic(contract),
       fetchTokenKlines({
         chainId: 56,
@@ -55,6 +55,10 @@ export async function GET(req: Request) {
         limit: 96,
       }),
     ]);
+    const dynamic =
+      dynamicResult.status === "fulfilled" ? dynamicResult.value : null;
+    const candles =
+      candleResult.status === "fulfilled" ? candleResult.value : [];
 
     const tokenOhlc = ohlcFromCandles(candles);
     const stockPrice =

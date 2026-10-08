@@ -4,11 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import clsx from "clsx";
 import { Sparkline } from "@/components/Sparkline";
+import { loadChart } from "@/lib/venue/chartQuote";
 import { CORE_TICKERS, tickerMeta } from "@/lib/venue/tickers";
 
 type QuoteRow = {
   ticker: string;
-  last: number;
+  last: number | null;
   change: number;
   changePct: number;
   volume: number;
@@ -59,19 +60,20 @@ const VENUE_MARKS = [
   "/brand/logos/bnb.png",
 ];
 
-function seedQuote(ticker: string): QuoteRow {
-  let h = 0;
-  for (let i = 0; i < ticker.length; i++) h = (h * 31 + ticker.charCodeAt(i)) >>> 0;
-  const last = 20 + (h % 280) + ((h >> 7) % 100) / 100;
-  const changePct = ((h % 1600) - 800) / 100;
-  const change = (last * changePct) / 100;
-  const volume = 8_000_000 + (h % 90) * 1_450_000 + (h % 1000) / 1000;
-  const open = (h % 11) !== 0;
-  const markets = 1 + (h % 3);
-  return { ticker, last, change, changePct, volume, open, markets };
+function emptyQuote(ticker: string): QuoteRow {
+  return {
+    ticker,
+    last: null,
+    change: 0,
+    changePct: 0,
+    volume: 0,
+    open: true,
+    markets: 0,
+  };
 }
 
-function fmtPrice(n: number) {
+function fmtPrice(n: number | null | undefined) {
+  if (n == null || !Number.isFinite(n)) return "—";
   return `$${n.toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -79,10 +81,17 @@ function fmtPrice(n: number) {
 }
 
 function fmtVolume(n: number) {
+  if (!n) return "—";
   return `$${n.toLocaleString(undefined, {
     minimumFractionDigits: 3,
     maximumFractionDigits: 3,
   })}`;
+}
+
+function moveLabel(row: QuoteRow) {
+  if (row.last == null) return "—";
+  const up = row.changePct >= 0;
+  return `${up ? "▲" : "▼"} ${Math.abs(row.changePct).toFixed(2)}%`;
 }
 
 function matchesFilter(ticker: string, f: Filter) {
@@ -116,7 +125,7 @@ export function ExploreMarkets({
   const [view, setView] = useState<ViewMode>("list");
   const [listTab, setListTab] = useState<ListTab>("stocks");
   const [rows, setRows] = useState<QuoteRow[]>(() =>
-    CORE_TICKERS.map(seedQuote),
+    CORE_TICKERS.map(emptyQuote),
   );
 
   useEffect(() => {
@@ -124,20 +133,21 @@ export function ExploreMarkets({
     (async () => {
       const next: QuoteRow[] = [];
       for (const ticker of CORE_TICKERS) {
-        const fallback = seedQuote(ticker);
+        const fallback = emptyQuote(ticker);
         try {
-          const d = await fetch(
-            `/api/venue/chart?ticker=${encodeURIComponent(ticker)}&range=1D`,
-          ).then((r) => r.json());
+          const d = await loadChart(ticker, "1D");
           if (!d.ok || d.last == null) {
             next.push(fallback);
             continue;
           }
+          const volume = (d.candles || []).reduce((sum, c) => sum + (c.v || 0), 0);
           next.push({
             ...fallback,
             last: Number(d.last),
             change: Number(d.change ?? 0),
             changePct: Number(d.changePct ?? 0),
+            volume,
+            markets: 1,
           });
         } catch {
           next.push(fallback);
@@ -205,9 +215,8 @@ export function ExploreMarkets({
   }, [rows, filter, query, sort]);
 
   const total = portfolioTotal ?? 0;
-  const d24 = byTicker.get("NVDA")?.changePct ?? -1.55;
-  const d1w = Math.abs(d24) * 3.2;
-  const d1m = Math.abs(d24) * 12 + 8;
+  const nvda = byTicker.get("NVDA");
+  const d24 = nvda?.last != null ? nvda.changePct : null;
   const marketStatus = sessionLabel
     ? `Market Open (${sessionLabel})`
     : "Market Open (Pre-Market)";
@@ -226,19 +235,19 @@ export function ExploreMarkets({
                 {fmtPrice(total)}
               </div>
               <div className="mb-1 flex flex-wrap gap-2">
-                <PeriodPill label="24H" pct={d24} />
-                <PeriodPill label="1W" pct={d1w} />
-                <PeriodPill label="1M" pct={d1m} />
+                {d24 != null && <PeriodPill label="24H" pct={d24} />}
               </div>
             </div>
           </div>
           <div className="flex items-center gap-4 sm:justify-end">
-            <Sparkline
-              seed={`port-${Math.round(total)}`}
-              up={d24 >= 0}
-              height={36}
-              className="hidden w-32 md:block"
-            />
+            {d24 != null && (
+              <Sparkline
+                seed={`port-${Math.round(total)}`}
+                up={d24 >= 0}
+                height={36}
+                className="hidden w-32 md:block"
+              />
+            )}
             {onViewPortfolio && (
               <button
                 type="button"
@@ -355,10 +364,14 @@ export function ExploreMarkets({
                     <span
                       className={clsx(
                         "tabular-nums",
-                        up ? "text-[var(--signal)]" : "text-[var(--danger)]",
+                        r.last == null
+                          ? "text-[var(--ink-soft)]"
+                          : up
+                            ? "text-[var(--signal)]"
+                            : "text-[var(--danger)]",
                       )}
                     >
-                      {up ? "▲" : "▼"} {Math.abs(r.changePct).toFixed(2)}%
+                      {moveLabel(r)}
                     </span>
                   </div>
                 </div>
@@ -552,18 +565,24 @@ export function ExploreMarkets({
                         <div
                           className={clsx(
                             "text-xs tabular-nums",
-                            up ? "text-[var(--signal)]" : "text-[var(--danger)]",
+                            r.last == null
+                              ? "text-[var(--ink-soft)]"
+                              : up
+                                ? "text-[var(--signal)]"
+                                : "text-[var(--danger)]",
                           )}
                         >
-                          {up ? "▲" : "▼"} {Math.abs(r.changePct).toFixed(2)}%
+                          {moveLabel(r)}
                         </div>
                       </div>
-                      <Sparkline
-                        seed={r.ticker}
-                        up={up}
-                        height={40}
-                        className="w-24"
-                      />
+                      {r.last != null && (
+                        <Sparkline
+                          seed={r.ticker}
+                          up={up}
+                          height={40}
+                          className="w-24"
+                        />
+                      )}
                     </div>
                   </button>
                 );
@@ -657,34 +676,36 @@ export function ExploreMarkets({
                         <td
                           className={clsx(
                             "py-2.5 pr-4 tabular-nums",
-                            flat
+                            r.last == null || flat
                               ? "text-[var(--ink-soft)]"
                               : up
                                 ? "text-[var(--signal)]"
                                 : "text-[var(--danger)]",
                           )}
                         >
-                          {flat ? "" : up ? "▲ " : "▼ "}
-                          {fmtPrice(Math.abs(r.change))}
+                          {r.last == null
+                            ? "—"
+                            : `${flat ? "" : up ? "▲ " : "▼ "}${fmtPrice(Math.abs(r.change))}`}
                         </td>
                         <td
                           className={clsx(
                             "py-2.5 pr-4 tabular-nums",
-                            flat
+                            r.last == null || flat
                               ? "text-[var(--ink-soft)]"
                               : up
                                 ? "text-[var(--signal)]"
                                 : "text-[var(--danger)]",
                           )}
                         >
-                          {flat ? "" : up ? "▲ " : "▼ "}
-                          {Math.abs(r.changePct).toFixed(2)}%
+                          {moveLabel(r)}
                         </td>
                         <td className="py-2.5 pr-4 tabular-nums text-[var(--ink)]">
                           {fmtVolume(r.volume)}
                         </td>
                         <td className="py-2.5 pr-4">
-                          {r.open ? (
+                          {r.last == null ? (
+                            <span className="text-[var(--ink-soft)]">—</span>
+                          ) : r.open ? (
                             <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e8f6ef] px-2.5 py-1 text-xs font-medium text-[var(--signal)]">
                               <span className="h-1.5 w-1.5 rounded-full bg-[var(--signal)]" />
                               Asset Open
@@ -697,12 +718,14 @@ export function ExploreMarkets({
                           )}
                         </td>
                         <td className="py-2.5">
-                          <Sparkline
-                            seed={r.ticker}
-                            up={up}
-                            height={28}
-                            className="w-24"
-                          />
+                          {r.last != null && (
+                            <Sparkline
+                              seed={r.ticker}
+                              up={up}
+                              height={28}
+                              className="w-24"
+                            />
+                          )}
                         </td>
                       </tr>
                     );
@@ -789,11 +812,14 @@ function MiniList({
                     <div
                       className={clsx(
                         "text-xs tabular-nums",
-                        up ? "text-[var(--signal)]" : "text-[var(--danger)]",
+                        r.last == null
+                          ? "text-[var(--ink-soft)]"
+                          : up
+                            ? "text-[var(--signal)]"
+                            : "text-[var(--danger)]",
                       )}
                     >
-                      {up ? "▲ " : "▼ "}
-                      {Math.abs(r.changePct).toFixed(2)}%
+                      {moveLabel(r)}
                     </div>
                   ) : (
                     <div className="text-xs text-[var(--ink-soft)] tabular-nums">

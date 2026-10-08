@@ -1,5 +1,7 @@
 /** Public RWA company / attestation metadata (no HMAC required). */
 
+import { equityTicker } from "@/lib/venue/tickers";
+
 const META_URL =
   "https://www.binance.com/bapi/defi/v1/public/wallet-direct/buw/wallet/market/token/rwa/meta/ai";
 
@@ -59,22 +61,23 @@ export async function fetchRwaMeta(
     return null;
   }
   const d = json.data;
-  const sym = (d.symbol || "").toLowerCase();
+  const sym = (d.symbol || "").toUpperCase();
+  const equity = equityTicker(sym);
   const riskNotes: string[] = [
     "Tokenized equities are not the same as broker equity - issuer, custody, and hours differ by wrapper.",
     "Spot only on BNB Smart Chain. Keep BNB for gas; do not convert your entire balance.",
   ];
-  if (sym.endsWith("on")) {
+  if (sym.endsWith("ON") && equity !== sym) {
     riskNotes.push(
       "Ondo wrappers are typically hours-bound (RFQ). Outside US session, quotes may fail or require a wallet.",
     );
   }
-  if (sym.endsWith("b")) {
+  if (sym.endsWith("B") && equity !== sym) {
     riskNotes.push(
       "bStocks support SWAP and RFQ; Off-Hours AMM may still quote when US markets are closed.",
     );
   }
-  if (sym.endsWith("x")) {
+  if (sym.endsWith("X") && equity !== sym) {
     riskNotes.push("xStocks lean 24/7 AMM - useful weekends, may trade at a wider premium.");
   }
 

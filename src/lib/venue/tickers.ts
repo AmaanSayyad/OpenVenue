@@ -50,3 +50,35 @@ export function tickerMeta(ticker: string): TickerMeta {
     }
   );
 }
+
+/** US listing symbol. Wrapper suffixes come off; NFLX stays NFLX. */
+export function equityTicker(symbol: string): string {
+  const trimmed = symbol.trim();
+  const known = baseTicker(trimmed);
+  if (TICKER_META[known]) return known;
+  const raw = trimmed.toUpperCase().replace(/[^A-Z0-9.]/g, "");
+  if (raw.endsWith("ON") && raw.length >= 5) {
+    const base = raw.slice(0, -2);
+    if (/^[A-Z]{1,5}$/.test(base)) return base;
+  }
+  return raw || known;
+}
+
+const TV_EXCHANGE: Record<string, string> = {
+  SPY: "AMEX",
+  DIA: "AMEX",
+  IWM: "AMEX",
+  VOO: "AMEX",
+  IVV: "AMEX",
+  GLD: "AMEX",
+  SLV: "AMEX",
+  EEM: "AMEX",
+  VTI: "AMEX",
+};
+
+/** TradingView symbol. NASDAQ is not assumed, so NYSE and Arca names still resolve. */
+export function tradingViewSymbol(symbol: string): string {
+  const equity = equityTicker(symbol);
+  const exchange = TV_EXCHANGE[equity];
+  return exchange ? `${exchange}:${equity}` : equity;
+}

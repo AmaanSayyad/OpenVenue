@@ -5,6 +5,7 @@ import {
   type ChartRange,
 } from "@/lib/binance/kline";
 import { searchRwaByTicker } from "@/lib/binance/rwa";
+import { equityTicker } from "@/lib/venue/tickers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,6 +16,7 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const ticker = (searchParams.get("ticker") || "NVDA").trim();
+    const equity = equityTicker(ticker);
     const range = (searchParams.get("range") || "1D").toUpperCase() as ChartRange;
     const contractParam = searchParams.get("contract") || undefined;
 
@@ -40,7 +42,7 @@ export async function GET(req: Request) {
         return NextResponse.json({
           ok: false,
           fallback: "tradingview",
-          ticker: ticker.replace(/(on|b|x)$/i, "").toUpperCase(),
+          ticker: equity,
           error: "No BSC wrapper found for chart",
         });
       }
@@ -51,20 +53,28 @@ export async function GET(req: Request) {
     }
 
     const { interval, limit } = rangeToInterval(range);
-    const candles = await fetchTokenKlines({
-      chainId: 56,
-      contractAddress: contract,
-      interval,
-      limit,
-    });
+    let candles: Awaited<ReturnType<typeof fetchTokenKlines>> = [];
+    let klineError: string | null = null;
+    try {
+      candles = await fetchTokenKlines({
+        chainId: 56,
+        contractAddress: contract,
+        interval,
+        limit,
+      });
+    } catch (err) {
+      klineError = err instanceof Error ? err.message : "Chart failed";
+    }
 
     if (!candles.length) {
       return NextResponse.json({
         ok: false,
-        fallback: "tradingview",
-        ticker: ticker.replace(/(on|b|x)$/i, "").toUpperCase(),
+        fallback: "client",
+        ticker: equity,
         contract,
-        error: "Empty kline series",
+        symbol,
+        kind,
+        error: klineError || "Empty kline series",
       });
     }
 
@@ -76,7 +86,7 @@ export async function GET(req: Request) {
     return NextResponse.json({
       ok: true,
       source: "binance-rwa-kline",
-      ticker: ticker.toUpperCase(),
+      ticker: equity,
       symbol,
       kind,
       contract,

@@ -3,6 +3,8 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import clsx from "clsx";
 import type { ChartRange } from "@/lib/binance/kline";
+import { loadChart, type ChartPayload } from "@/lib/venue/chartQuote";
+import { tradingViewSymbol } from "@/lib/venue/tickers";
 
 type CandlePt = { t: number; o: number; h: number; l: number; c: number; v: number };
 
@@ -114,7 +116,7 @@ export function PriceChart({
   const [loading, setLoading] = useState(true);
   const [hover, setHover] = useState<number | null>(null);
 
-  const equity = ticker.replace(/(on|b|x)$/i, "").toUpperCase();
+  const equity = tradingViewSymbol(ticker);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,22 +125,29 @@ export function PriceChart({
     setFail(null);
     setHover(null);
 
-    const qs = new URLSearchParams({ ticker, range });
-    if (contract) qs.set("contract", contract);
-
     const load = (attempt: number) => {
-      fetch(`/api/venue/chart?${qs}`)
-        .then((r) => r.json())
-        .then((json: ChartOk | ChartFail) => {
+      loadChart(ticker, range, contract)
+        .then((json: ChartPayload) => {
           if (cancelled) return;
-          if (json.ok) {
-            setData(json);
+          if (json.ok && json.last != null && json.candles && json.candles.length > 1) {
+            const ok: ChartOk = {
+              ok: true,
+              source: json.source || "binance-rwa-kline",
+              last: json.last,
+              change: json.change ?? 0,
+              changePct: json.changePct ?? 0,
+              candles: json.candles,
+              symbol: json.symbol,
+              kind: json.kind,
+              contract: json.contract,
+            };
+            setData(ok);
             setMode("token");
             setFail(null);
             onQuote?.({
-              last: json.last,
-              changePct: json.changePct,
-              change: json.change,
+              last: ok.last,
+              changePct: ok.changePct,
+              change: ok.change,
             });
             setLoading(false);
             return;
@@ -148,7 +157,12 @@ export function PriceChart({
             return;
           }
           setData(null);
-          setFail(json);
+          setFail({
+            ok: false,
+            fallback: "tradingview",
+            ticker: json.ticker,
+            error: json.error,
+          });
           if (!/rate limit/i.test(json.error || "")) setMode("tradingview");
           setLoading(false);
         })
@@ -257,7 +271,11 @@ export function PriceChart({
               </>
             ) : (
               <div className="text-[14px] font-medium text-[var(--ink-soft)]">
-                {loading ? "Loading chart…" : fail?.error || "Chart"}
+                {loading
+                  ? "Loading chart…"
+                  : mode === "tradingview"
+                    ? "Underlying equity"
+                    : fail?.error || "Chart"}
               </div>
             )}
           </div>
@@ -447,7 +465,7 @@ export function PriceChart({
 function TradingViewEmbed({ symbol }: { symbol: string }) {
   const src = useMemo(() => {
     const params = new URLSearchParams({
-      symbol: `NASDAQ:${symbol}`,
+      symbol,
       interval: "D",
       theme: "light",
       style: "1",
@@ -474,7 +492,7 @@ function TradingViewEmbed({ symbol }: { symbol: string }) {
         referrerPolicy="no-referrer-when-downgrade"
       />
       <p className="px-3 py-2 text-[11px] text-[var(--ink-soft)]">
-        Underlying equity via TradingView · NASDAQ:{symbol}
+        Underlying equity via TradingView · {symbol}
       </p>
     </div>
   );

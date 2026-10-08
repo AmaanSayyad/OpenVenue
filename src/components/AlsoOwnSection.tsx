@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import clsx from "clsx";
 import { Sparkline } from "@/components/Sparkline";
+import { loadChart } from "@/lib/venue/chartQuote";
 import { CORE_TICKERS, tickerMeta } from "@/lib/venue/tickers";
 
 const VENUE_LOGOS = [
@@ -22,17 +23,6 @@ type Quote = {
   changePct: number;
 };
 
-function seedQuote(seed: string, up: boolean): Quote {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  const base = 40 + (h % 220) + ((h >> 8) % 100) / 100;
-  const pct = up
-    ? 0.2 + ((h % 700) / 100)
-    : -(0.05 + ((h % 250) / 100));
-  const change = (base * pct) / 100;
-  return { last: base, change, changePct: pct };
-}
-
 function AlsoOwnCard({
   ticker,
   index,
@@ -43,14 +33,11 @@ function AlsoOwnCard({
   onSelect: (t: string) => void;
 }) {
   const m = tickerMeta(ticker);
-  const fallbackUp = index % 3 !== 1;
-  const [quote, setQuote] = useState<Quote>(() => seedQuote(ticker, fallbackUp));
-  const [live, setLive] = useState(false);
+  const [quote, setQuote] = useState<Quote | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/venue/chart?ticker=${encodeURIComponent(ticker)}&range=1D`)
-      .then((r) => r.json())
+    loadChart(ticker, "1D")
       .then((d) => {
         if (cancelled || !d.ok || d.last == null) return;
         setQuote({
@@ -58,7 +45,6 @@ function AlsoOwnCard({
           change: Number(d.change ?? 0),
           changePct: Number(d.changePct ?? 0),
         });
-        setLive(true);
       })
       .catch(() => undefined);
     return () => {
@@ -66,8 +52,8 @@ function AlsoOwnCard({
     };
   }, [ticker]);
 
-  const up = quote.changePct >= 0;
-  const tint = up ? "bg-[#e8f6ef]" : "bg-[#fdeced]";
+  const up = (quote?.changePct ?? 0) >= 0;
+  const tint = quote ? (up ? "bg-[#e8f6ef]" : "bg-[#fdeced]") : "bg-[var(--bg-muted)]";
   const tone = up ? "text-[var(--signal)]" : "text-[var(--danger)]";
 
   return (
@@ -101,29 +87,31 @@ function AlsoOwnCard({
 
       <div className={clsx("mt-3 overflow-hidden rounded-[16px] px-3 pb-1 pt-4", tint)}>
         <div className="text-[28px] font-semibold tracking-tight tabular-nums">
-          $
-          {quote.last.toLocaleString(undefined, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}
+          {quote
+            ? `$${quote.last.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`
+            : "—"}
         </div>
         <div className={clsx("mt-0.5 text-[12px] font-medium tabular-nums", tone)}>
-          {up ? "▲" : "▼"} $
-          {Math.abs(quote.change).toLocaleString(undefined, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}{" "}
-          ({Math.abs(quote.changePct).toFixed(2)}%) 24H
-          {!live && (
-            <span className="ml-1 font-normal text-[var(--ink-soft)]">· est</span>
-          )}
+          {quote
+            ? `${up ? "▲" : "▼"} $${Math.abs(quote.change).toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })} (${Math.abs(quote.changePct).toFixed(2)}%) 24H`
+            : "Price unavailable"}
         </div>
-        <Sparkline
-          seed={ticker}
-          up={up}
-          height={120}
-          className="mt-1 w-full"
-        />
+        {quote ? (
+          <Sparkline
+            seed={ticker}
+            up={up}
+            height={120}
+            className="mt-1 w-full"
+          />
+        ) : (
+          <div className="mt-1 h-[120px]" />
+        )}
       </div>
 
       <div className="mt-3 flex items-center justify-between gap-2">

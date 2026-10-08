@@ -211,7 +211,13 @@ export function AssetStats({
                     ? `${stock.dividendYield.toFixed(2)}%`
                     : "-",
               },
-              { label: "Payout Frequency", value: "Quarterly" },
+              {
+                label: "Payout Frequency",
+                value:
+                  stock?.dividendYield != null || stock?.lastCashAmount != null
+                    ? "Quarterly"
+                    : "-",
+              },
               {
                 label: "Last Dividend Amount",
                 value: fmtUsd(stock?.lastCashAmount),
