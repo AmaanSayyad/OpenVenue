@@ -1738,7 +1738,7 @@ function AppPageInner() {
                               <dd className="font-medium">{String(meta.industry)}</dd>
                             </div>
                           ) : null}
-                          {(meta.dailyAttestation || meta.monthlyAttestation) && (
+                          {meta.dailyAttestation || meta.monthlyAttestation ? (
                             <div className="flex items-center justify-between gap-4 py-3">
                               <dt className="text-[var(--ink-soft)]">
                                 Attestation reports
@@ -1766,7 +1766,7 @@ function AppPageInner() {
                                 ) : null}
                               </dd>
                             </div>
-                          )}
+                          ) : null}
                         </dl>
                       </div>
                     )}
