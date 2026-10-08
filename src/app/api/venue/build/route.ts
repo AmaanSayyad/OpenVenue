@@ -74,22 +74,26 @@ export async function POST(req: Request) {
       });
     }
 
+    const failReason = simulation
+      ? simulation.ok
+        ? (simulation.data as { failReason?: string })?.failReason || ""
+        : simulation.error || ""
+      : "";
     const simOk =
       !simulation ||
       (simulation.ok &&
         (simulation.data as { status?: string })?.status !== "FAIL" &&
         (simulation.data as { status?: string })?.status !== "FAILED");
+    // The swap is simulated before the approve is mined. A missing allowance
+    // is expected; the client signs the approve, then the swap.
+    const allowancePending =
+      !simOk && /allowance/i.test(failReason) && approve.ok;
 
-    if (body.requireSimOk !== false && simulation && !simOk) {
+    if (body.requireSimOk !== false && simulation && !simOk && !allowancePending) {
       return NextResponse.json(
         {
           ok: false,
-          error: `Simulation gate blocked execute: ${
-            simulation.ok
-              ? (simulation.data as { failReason?: string })?.failReason ||
-                "simulation unsuccessful"
-              : simulation.error
-          }`,
+          error: `Simulation gate blocked execute: ${failReason || "simulation unsuccessful"}`,
           simulation,
         },
         { status: 400 },
@@ -103,7 +107,8 @@ export async function POST(req: Request) {
       approveError: approve.ok ? null : approve.error,
       swap: swap.data,
       simulation,
-      simOk,
+      simOk: simOk || allowancePending,
+      allowancePending,
       fromTokenAddress: from,
       slippagePercent: body.slippagePercent ?? "1",
     });

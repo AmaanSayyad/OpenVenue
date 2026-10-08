@@ -6,12 +6,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAppKit } from "@reown/appkit/react";
 import {
   useAccount,
+  usePublicClient,
   useSendTransaction,
   useSignTypedData,
   useWaitForTransactionReceipt,
 } from "wagmi";
 import "@/config/appkit";
-import { type Hex, type Address, parseUnits } from "viem";
+import { type Hex, type Address, encodeFunctionData, parseUnits } from "viem";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Sparkline } from "@/components/Sparkline";
@@ -122,6 +123,7 @@ function AppPageInner() {
   const { address, isConnected } = useAccount();
   const { open } = useAppKit();
   const { sendTransactionAsync } = useSendTransaction();
+  const publicClient = usePublicClient();
   const { signTypedDataAsync } = useSignTypedData();
 
   const [tab, setTab] = useState<Tab>("explore");
@@ -704,23 +706,24 @@ function AppPageInner() {
     };
 
     try {
+      const buildBody = {
+        quoteId: selected.route.quoteId,
+        fromTokenAddress: fromToken,
+        toTokenAddress: toToken,
+        amount: amt,
+        userWalletAddress: address,
+        vendor: selected.route.vendorName,
+        executionMode: selected.route.executionMode,
+        slippagePercent: slippage,
+        simulate: true,
+        requireSimOk: requireSim,
+      };
       const res = await fetch("/api/venue/build", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          quoteId: selected.route.quoteId,
-          fromTokenAddress: fromToken,
-          toTokenAddress: toToken,
-          amount: amt,
-          userWalletAddress: address,
-          vendor: selected.route.vendorName,
-          executionMode: selected.route.executionMode,
-          slippagePercent: slippage,
-          simulate: true,
-          requireSimOk: requireSim,
-        }),
+        body: JSON.stringify(buildBody),
       });
-      const json = await res.json();
+      let json = await res.json();
       if (!json.ok) throw new Error(json.error || "Build failed");
 
       const mode = String(json.executionMode || "SWAP").toUpperCase();
@@ -831,7 +834,40 @@ function AppPageInner() {
           status: "submitted",
           simOk: json.simOk ?? null,
         });
-        await new Promise((r) => setTimeout(r, 4000));
+        if (publicClient) {
+          await publicClient.waitForTransactionReceipt({ hash: approveHash });
+        }
+        setStatus("Refreshing the quote…");
+        const refresh = new URLSearchParams({
+          ticker: receiptBase.ticker,
+          amount: amount.trim() || "1",
+          side,
+          wallet: address,
+        });
+        if (side === "sell") {
+          refresh.set("fromToken", fromToken);
+          refresh.set("fromAmountWei", amt);
+        }
+        const fresh = await fetch(`/api/venue/resolve?${refresh}`).then((r) =>
+          r.json(),
+        );
+        const best = fresh.decision?.bestQuote;
+        if (!fresh.ok || !best?.route?.quoteId) {
+          throw new Error(fresh.decision?.reason || fresh.error || "Quote refresh failed");
+        }
+        const rebuilt = await fetch("/api/venue/build", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...buildBody,
+            quoteId: best.route.quoteId,
+            vendor: best.route.vendorName,
+            executionMode: best.route.executionMode,
+          }),
+        }).then((r) => r.json());
+        if (!rebuilt.ok) throw new Error(rebuilt.error || "Rebuild failed");
+        json = rebuilt;
+        setQuoteAge(Date.now());
       }
 
       const tx = (json.swap as { tx?: Record<string, string> })?.tx;
@@ -959,6 +995,117 @@ function AppPageInner() {
     }
   }
 
+  type ParkCall = {
+    to?: string;
+    data?: string;
+    value?: string;
+    callDataType?: string;
+  };
+
+  const vaultAbi = [
+    {
+      name: "maxRedeem",
+      type: "function",
+      stateMutability: "view",
+      inputs: [{ name: "owner", type: "address" }],
+      outputs: [{ name: "shares", type: "uint256" }],
+    },
+    {
+      name: "redeem",
+      type: "function",
+      stateMutability: "nonpayable",
+      inputs: [
+        { name: "shares", type: "uint256" },
+        { name: "receiver", type: "address" },
+        { name: "owner", type: "address" },
+      ],
+      outputs: [{ name: "assets", type: "uint256" }],
+    },
+  ] as const;
+
+  async function broadcastCalls(calls: ParkCall[]) {
+    if (!publicClient) throw new Error("Wallet is not ready");
+    const hashes: Hex[] = [];
+    for (const call of calls) {
+      if (!call.to || !call.data) continue;
+      const value =
+        call.value && call.value !== "0x0" && call.value !== "0"
+          ? BigInt(call.value)
+          : undefined;
+      const hash = await sendTransactionAsync({
+        to: call.to as Address,
+        data: call.data as Hex,
+        value,
+      });
+      hashes.push(hash);
+      await publicClient.waitForTransactionReceipt({ hash });
+    }
+    if (!hashes.length) throw new Error("Earn transaction was empty");
+    return hashes;
+  }
+
+  async function depositPool(investmentId: string, amountLabel: string) {
+    const res = await fetch("/api/venue/park", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        address,
+        investmentId,
+        amount: amountLabel,
+        action: "deposit",
+      }),
+    }).then((r) => r.json());
+    if (!res.ok) throw new Error(res.error || "Park failed");
+    return broadcastCalls((res.data?.dataList || []) as ParkCall[]);
+  }
+
+  async function redeemPool(investmentId: string) {
+    const res = await fetch("/api/venue/park", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        address,
+        investmentId,
+        action: "redeem",
+        ratio: "1",
+      }),
+    }).then((r) => r.json());
+    if (res.ok && res.data?.dataList?.length) {
+      return broadcastCalls(res.data.dataList as ParkCall[]);
+    }
+    const preview = await fetch("/api/venue/park", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        address,
+        investmentId,
+        amount: "1",
+        action: "deposit",
+      }),
+    }).then((r) => r.json());
+    const vault = ((preview.data?.dataList || []) as ParkCall[]).find(
+      (call) => call.callDataType === "DEPOSIT",
+    )?.to;
+    if (!vault || !publicClient || !address) {
+      throw new Error(res.error || "Unpark failed");
+    }
+    const shares = await publicClient.readContract({
+      address: vault as Address,
+      abi: vaultAbi,
+      functionName: "maxRedeem",
+      args: [address],
+    });
+    if (shares === 0n) throw new Error(res.error || "Nothing parked in this pool");
+    const data = encodeFunctionData({
+      abi: vaultAbi,
+      functionName: "redeem",
+      args: [shares, address, address],
+    });
+    const hash = await sendTransactionAsync({ to: vault as Address, data });
+    await publicClient.waitForTransactionReceipt({ hash });
+    return [hash];
+  }
+
   async function parkBestApy() {
     if (!address) {
       setError("Connect wallet to park USDT");
@@ -1006,48 +1153,36 @@ function AppPageInner() {
     }
     const parkAmtLabel = String(parkAmt);
     setStatus(`Parking ${parkAmtLabel} USDT into ${best.protocolName} (${best.apyDisplay})…`);
-    const res = await fetch("/api/venue/park", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        address,
-        investmentId: best.investmentId,
-        amount: parkAmtLabel,
-        action: "deposit",
-      }),
-    }).then((r) => r.json());
-    if (!res.ok) {
-      setError(res.error || "Park failed");
-      setStatus(null);
-      return;
-    }
-    setHistory(
-      pushHistory({
+    try {
+      const hashes = await depositPool(best.investmentId, parkAmtLabel);
+      const txHash = hashes[hashes.length - 1];
+      setTxHash(txHash);
+      setHistory(
+        pushHistory({
+          side: "park",
+          ticker: "USDT",
+          amountLabel: parkAmtLabel,
+          status: "submitted",
+          vendor: best.protocolName,
+          txHash,
+        }),
+      );
+      const next = pushReceipt({
         side: "park",
         ticker: "USDT",
-        amountLabel: parkAmtLabel,
-        status: "submitted",
-        vendor: best.protocolName,
-      }),
-    );
-    const next = pushReceipt({
-      side: "park",
-      ticker: "USDT",
         amountLabel: `${parkAmtLabel} USDT`,
-      vendor: best.protocolName,
-      status: "submitted",
-      notes: [`APY ${best.apyDisplay}`, "One-tap park"],
-    });
-    setReceipts(next);
-    setActiveReceipt(next[0]);
-    setStatus(`Park sim OK · ${best.protocolName} · ${best.apyDisplay}`);
-    setAlerts(
-      pushAlert({
-        kind: "info",
-        title: "Park preview ready",
-        body: `${parkAmtLabel} USDT into ${best.protocolName} at ${best.apyDisplay}. Nothing is signed yet.`,
-      }),
-    );
+        vendor: best.protocolName,
+        status: "submitted",
+        txHash,
+        notes: [`APY ${best.apyDisplay}`, "One-tap park"],
+      });
+      setReceipts(next);
+      setActiveReceipt(next[0]);
+      setStatus(`Parked ${parkAmtLabel} USDT · ${best.protocolName}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Park failed");
+      setStatus(null);
+    }
   }
 
   const openTrade = useCallback(
@@ -2142,22 +2277,12 @@ function AppPageInner() {
                             }
                             onClick={async () => {
                               if (!address || !(Number(amount) > 0)) return;
-                              const res = await fetch("/api/venue/park", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  address,
-                                  investmentId: p.investmentId,
-                                  amount,
-                                  action: "deposit",
-                                }),
-                              }).then((r) => r.json());
-                              setStatus(
-                                res.ok
-                                  ? `Park preview ready · ${p.protocolName}`
-                                  : res.error || "Park failed",
-                              );
-                              if (res.ok) {
+                              setStatus(`Parking ${amount} USDT into ${p.protocolName}…`);
+                              try {
+                                const hashes = await depositPool(p.investmentId, amount);
+                                const txHash = hashes[hashes.length - 1];
+                                setTxHash(txHash);
+                                setStatus(`Parked ${amount} USDT · ${p.protocolName}`);
                                 setHistory(
                                   pushHistory({
                                     side: "park",
@@ -2165,6 +2290,7 @@ function AppPageInner() {
                                     amountLabel: amount,
                                     status: "submitted",
                                     vendor: p.protocolName,
+                                    txHash,
                                   }),
                                 );
                                 const next = pushReceipt({
@@ -2173,10 +2299,14 @@ function AppPageInner() {
                                   amountLabel: `${amount} USDT`,
                                   vendor: p.protocolName,
                                   status: "submitted",
+                                  txHash,
                                   notes: [`APY ${p.apyDisplay}`],
                                 });
                                 setReceipts(next);
                                 setActiveReceipt(next[0]);
+                              } catch (err) {
+                                setError(err instanceof Error ? err.message : "Park failed");
+                                setStatus(null);
                               }
                             }}
                           >
@@ -2187,21 +2317,16 @@ function AppPageInner() {
                             disabled={!address}
                             onClick={async () => {
                               if (!address) return;
-                              const res = await fetch("/api/venue/park", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  address,
-                                  investmentId: p.investmentId,
-                                  action: "redeem",
-                                  ratio: "1",
-                                }),
-                              }).then((r) => r.json());
-                              setStatus(
-                                res.ok
-                                  ? `Unpark preview ready · ${p.protocolName}`
-                                  : res.error || "Redeem failed",
-                              );
+                              setStatus(`Unparking ${p.protocolName}…`);
+                              try {
+                                const hashes = await redeemPool(p.investmentId);
+                                const txHash = hashes[hashes.length - 1];
+                                setTxHash(txHash);
+                                setStatus(`Unparked · ${p.protocolName}`);
+                              } catch (err) {
+                                setError(err instanceof Error ? err.message : "Unpark failed");
+                                setStatus(null);
+                              }
                             }}
                           >
                             Unpark
