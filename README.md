@@ -224,6 +224,63 @@ OpenVenue is the desk that treats “buy NVDA with USDT on BSC” as one intent 
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+### How it works
+
+The desk never holds the Binance secret or the user's key. API routes run in Mumbai (`bom1`) so Binance accepts the call. The wallet signs only after simulation passes. OpenVenue Tape buys the same resolve step.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor User
+  participant Desk as Desk (browser)
+  participant API as OpenVenue API (Vercel Mumbai)
+  participant Binance as Binance Web3 /build
+  participant Wallet as Wallet
+  participant BSC as BSC mainnet
+
+  User->>Desk: Ticker and USDT amount
+  Desk->>API: GET /api/venue/resolve
+  API->>Binance: HMAC search for wrappers on BSC
+  Binance-->>API: bStock, Ondo, xStock candidates
+  API->>API: US session — prefer RFQ while open, SWAP when closed
+  loop Each wrapper
+    API->>Binance: Aggregator quote
+    Binance-->>API: Route, or a refusal
+  end
+  API->>API: Score spread, hours, and fill mode
+
+  alt A live quote wins
+    API-->>Desk: Best wrapper, reason, 30s quote
+    User->>Desk: Execute
+    Desk->>API: POST /api/venue/build (simulate)
+    API->>Binance: Approve payload, swap or RFQ, simulation
+    Binance-->>API: Simulation result
+    alt Simulation fails or quote expired
+      API-->>Desk: Block the trade
+    else Simulation passes
+      API-->>Desk: Unsigned approve and swap
+      opt USDT allowance is short
+        Desk->>Wallet: Sign approve
+        Wallet->>BSC: Approve USDT
+      end
+      Desk->>Wallet: Sign swap or RFQ
+      Wallet->>BSC: Broadcast
+      BSC-->>Desk: Receipt
+      Desk-->>User: Fill and shareable receipt
+    end
+  else No live equity quote
+    API-->>Desk: Park fallback
+    Desk->>API: POST /api/venue/park
+    API->>Binance: Unsigned USDT earn deposit
+    Binance-->>API: Deposit payload
+    API-->>Desk: Unsigned deposit
+    Desk->>Wallet: Sign deposit
+    Wallet->>BSC: Park USDT
+  end
+```
+
+The paid agent path is the same resolve call. A buyer pays about $0.05, then `venueWork.ts` requests `/api/venue/resolve` and returns the decision. Step-by-step diagrams for resolve, SWAP, RFQ, and Tape are in [Sequence diagrams](#sequence-diagrams).
+
 ### Key modules
 
 | Path | Role |
