@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# agent studio
+venuetape/node_modules/
+venuetape/**/node_modules/
+venuetape/.studio/
+venuetape/**/.studio/

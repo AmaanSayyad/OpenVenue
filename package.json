@@ -2,16 +2,32 @@
   "name": "venue",
   "version": "0.1.0",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AmaanSayyad/Venue.git"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "e2e:mainnet": "node scripts/e2e-mainnet.mjs"
   },
   "dependencies": {
+    "@reown/appkit": "^2.0.0-wagmi-3.0",
+    "@reown/appkit-adapter-wagmi": "^2.0.0-wagmi-3.0",
+    "@tanstack/react-query": "^5.104.1",
+    "@wagmi/connectors": "^8.2.0",
+    "@wagmi/core": "^3.6.5",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.4.0",
+    "framer-motion": "^14.0.0",
+    "lucide-react": "^1.52.0",
     "next": "16.3.8",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "viem": "^2.57.3",
+    "wagmi": "^3.7.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
