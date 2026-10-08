@@ -812,7 +812,6 @@ function AppPageInner() {
           to: (approveTx.to || fromToken) as Address,
           data: approveTx.data as Hex,
           value: approveTx.value ? BigInt(approveTx.value) : undefined,
-          gas: approveTx.gas ? BigInt(approveTx.gas) : undefined,
         });
         setTxHash(approveHash);
         setHistory(
@@ -847,7 +846,6 @@ function AppPageInner() {
         to: tx.to as Address,
         data: tx.data as Hex,
         value: tx.value ? BigInt(tx.value) : undefined,
-        gas: tx.gas ? BigInt(tx.gas) : undefined,
       });
       setTxHash(hash);
       setHistory(
