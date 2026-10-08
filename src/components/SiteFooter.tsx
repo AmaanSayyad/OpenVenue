@@ -1,30 +1,24 @@
 import Link from "next/link";
-import clsx from "clsx";
 
-export function SiteFooter({ compact = false }: { compact?: boolean }) {
+export function SiteFooter() {
   return (
-    <footer className="mt-auto bg-white">
-      <div
-        className={clsx(
-          "mx-auto max-w-6xl px-5",
-          compact ? "pb-2 pt-4 sm:pb-3 sm:pt-5" : "pb-6 pt-8 sm:pb-8 sm:pt-10",
-        )}
-      >
+    <footer className="mt-auto bg-transparent pt-16 sm:pt-24">
+      <div className="bg-white">
+      <div className="mx-auto w-full max-w-[1536px] px-8 pt-8 sm:px-14 sm:pt-10">
         <p
-          className={clsx(
-            "display text-center font-semibold leading-[0.85] tracking-[-0.045em] text-[var(--ink)]",
-            compact
-              ? "text-[clamp(2.5rem,7vw,4rem)]"
-              : "text-[clamp(3.5rem,12vw,7rem)]",
-          )}
+          className="display w-full whitespace-nowrap text-center font-medium leading-none tracking-[-0.045em] text-[var(--ink)]"
+          style={{
+            fontSize: "clamp(2.75rem, 12vw, 10.25rem)",
+            paddingBottom: "0.36em",
+          }}
         >
           OpenVenue
         </p>
       </div>
-      <div className="border-t border-black/[0.08]">
-        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-6 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-x-7 gap-y-2 text-[13px] leading-none">
-            <span className="font-semibold text-black">
+      <div className="border-t border-[#dedede]">
+        <div className="mx-auto flex w-full max-w-[1536px] flex-col gap-4 px-4 py-[22px] sm:flex-row sm:items-center sm:justify-between sm:px-9">
+          <div className="flex flex-wrap items-center gap-x-7 gap-y-2 text-sm font-medium leading-none">
+            <span className="text-black">
               OpenVenue © {new Date().getFullYear()}
             </span>
             <Link
@@ -49,8 +43,8 @@ export function SiteFooter({ compact = false }: { compact?: boolean }) {
               className="text-[#626262] transition hover:text-black"
             >
               <svg
-                width="15"
-                height="15"
+                width="24"
+                height="24"
                 viewBox="0 0 24 24"
                 fill="currentColor"
                 aria-hidden
@@ -66,8 +60,8 @@ export function SiteFooter({ compact = false }: { compact?: boolean }) {
               className="text-[#626262] transition hover:text-black"
             >
               <svg
-                width="16"
-                height="16"
+                width="24"
+                height="24"
                 viewBox="0 0 24 24"
                 fill="currentColor"
                 aria-hidden
@@ -81,6 +75,7 @@ export function SiteFooter({ compact = false }: { compact?: boolean }) {
             </a>
           </div>
         </div>
+      </div>
       </div>
     </footer>
   );

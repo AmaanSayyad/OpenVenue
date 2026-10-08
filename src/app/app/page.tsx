@@ -2331,7 +2331,7 @@ function AppPageInner() {
         </div>
       </div>
 
-      <SiteFooter compact />
+      <SiteFooter />
     </main>
   );
 }

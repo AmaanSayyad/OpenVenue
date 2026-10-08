@@ -166,7 +166,7 @@ export default function MarketplacePage() {
           </div>
         </section>
       </div>
-      <SiteFooter compact />
+      <SiteFooter />
     </main>
   );
 }

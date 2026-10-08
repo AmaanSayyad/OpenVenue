@@ -134,7 +134,7 @@ export default function HowItWorksPage() {
           </Link>
         </section>
       </div>
-      <SiteFooter compact />
+      <SiteFooter />
     </main>
   );
 }
