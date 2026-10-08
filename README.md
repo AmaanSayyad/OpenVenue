@@ -230,52 +230,24 @@ The desk never holds the Binance secret or the user's key. API routes run in Mum
 
 ```mermaid
 sequenceDiagram
-  autonumber
   actor User
-  participant Desk as Desk (browser)
-  participant API as OpenVenue API (Vercel Mumbai)
-  participant Binance as Binance Web3 /build
-  participant Wallet as Wallet
-  participant BSC as BSC mainnet
+  participant Desk
+  participant API as API in Mumbai
+  participant Binance
+  participant Wallet
 
-  User->>Desk: Ticker and USDT amount
-  Desk->>API: GET /api/venue/resolve
-  API->>Binance: HMAC search for wrappers on BSC
-  Binance-->>API: bStock, Ondo, xStock candidates
-  API->>API: US session — prefer RFQ while open, SWAP when closed
-  loop Each wrapper
-    API->>Binance: Aggregator quote
-    Binance-->>API: Route, or a refusal
-  end
-  API->>API: Score spread, hours, and fill mode
-
-  alt A live quote wins
-    API-->>Desk: Best wrapper, reason, 30s quote
-    User->>Desk: Execute
-    Desk->>API: POST /api/venue/build (simulate)
-    API->>Binance: Approve payload, swap or RFQ, simulation
-    Binance-->>API: Simulation result
-    alt Simulation fails or quote expired
-      API-->>Desk: Block the trade
-    else Simulation passes
-      API-->>Desk: Unsigned approve and swap
-      opt USDT allowance is short
-        Desk->>Wallet: Sign approve
-        Wallet->>BSC: Approve USDT
-      end
-      Desk->>Wallet: Sign swap or RFQ
-      Wallet->>BSC: Broadcast
-      BSC-->>Desk: Receipt
-      Desk-->>User: Fill and shareable receipt
-    end
-  else No live equity quote
-    API-->>Desk: Park fallback
-    Desk->>API: POST /api/venue/park
-    API->>Binance: Unsigned USDT earn deposit
-    Binance-->>API: Deposit payload
-    API-->>Desk: Unsigned deposit
-    Desk->>Wallet: Sign deposit
-    Wallet->>BSC: Park USDT
+  User->>Desk: Type a ticker
+  Desk->>API: Resolve
+  API->>Binance: Find wrappers and quote
+  Binance-->>API: Routes
+  API-->>Desk: Best open venue
+  alt Quote is live
+    Desk->>API: Simulate
+    API-->>Desk: Pass
+    Desk->>Wallet: Sign the swap
+    Wallet-->>User: Fill
+  else No quote
+    Desk->>Wallet: Park USDT
   end
 ```
 
