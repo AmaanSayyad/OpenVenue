@@ -10,6 +10,8 @@ Source: [github.com/AmaanSayyad/OpenVenue](https://github.com/AmaanSayyad/OpenVe
 
 Live: [openvenue.xyz](https://openvenue.xyz)
 
+Pitch deck: [OpenVenue](https://app.chroniclehq.com/share/0f55cc23-897b-4a17-9ae9-c430e7e7eadb/610bb562-477b-4a08-97fa-acb555e80fc0)
+
 ---
 
 ## What did you build?
@@ -555,6 +557,7 @@ BNBhack/
 | How it works (app) | `/how-it-works` |
 | Marketplace listing (app) | `/marketplace` |
 | Desk | `/app` |
+| Pitch deck | https://app.chroniclehq.com/share/0f55cc23-897b-4a17-9ae9-c430e7e7eadb/610bb562-477b-4a08-97fa-acb555e80fc0 |
 
 ### Binance / BNB
 

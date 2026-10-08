@@ -2,6 +2,7 @@
 
 > Hackathon: BNB Hack Tokenized Stocks Edition  
 > Project: OpenVenue (session-aware multi-wrapper router)  
+> Pitch deck: https://app.chroniclehq.com/share/0f55cc23-897b-4a17-9ae9-c430e7e7eadb/610bb562-477b-4a08-97fa-acb555e80fc0  
 > Notes captured while integrating Binance Web3 `/build` APIs on BSC mainnet (2026-10-05).
 
 ## Onboarding

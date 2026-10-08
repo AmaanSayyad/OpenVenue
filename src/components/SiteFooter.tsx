@@ -33,6 +33,14 @@ export function SiteFooter() {
             >
               Privacy Policy
             </Link>
+            <a
+              href="https://app.chroniclehq.com/share/0f55cc23-897b-4a17-9ae9-c430e7e7eadb/610bb562-477b-4a08-97fa-acb555e80fc0"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#626262] transition hover:text-black"
+            >
+              Pitch deck
+            </a>
           </div>
           <div className="flex items-center gap-5">
             <a
