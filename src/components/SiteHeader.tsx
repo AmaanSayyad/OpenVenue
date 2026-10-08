@@ -96,7 +96,7 @@ function SiteHeaderBar({
         <div className="pointer-events-auto border-b border-white/10 bg-[#111] px-4 py-2 text-center text-[13px] font-medium text-white/90">
           Session-aware routing across bStocks, Ondo, and xStocks on BNB Chain.{" "}
           <Link href="/app" className="underline underline-offset-2">
-            Open Venue →
+            Launch OpenVenue →
           </Link>
         </div>
       )}
@@ -127,7 +127,7 @@ function SiteHeaderBar({
                 light || dark ? "text-white" : "text-black",
               )}
             >
-              Venue
+              OpenVenue
             </span>
           </Link>
 

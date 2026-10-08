@@ -83,7 +83,7 @@ export function SavedStrategies({
         className="mt-4 flex items-center justify-between gap-4 rounded-[24px] bg-white px-5 py-4 text-sm ring-1 ring-black/[0.06] transition hover:bg-[var(--bg-muted)]"
       >
         <span>
-          <span className="block font-semibold">List Venue Tape</span>
+          <span className="block font-semibold">List OpenVenue Tape</span>
           <span className="text-[var(--ink-soft)]">
             Sell the same desk as an agent on the marketplace.
           </span>

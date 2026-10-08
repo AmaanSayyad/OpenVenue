@@ -32,13 +32,13 @@ export default function ShareReceiptPage() {
               desk Portfolio page and share again from that browser.
             </p>
             <Link href="/app" className="btn btn-primary mt-5 inline-flex">
-              Open Venue
+              Launch OpenVenue
             </Link>
           </div>
         ) : (
           <div className="mt-4 rounded-[24px] bg-white p-6 shadow-sm ring-1 ring-black/[0.06]">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-[var(--ink-soft)]">Venue receipt</p>
+              <p className="text-sm text-[var(--ink-soft)]">OpenVenue receipt</p>
               <span
                 className={
                   receipt.status === "confirmed"
@@ -77,7 +77,7 @@ export default function ShareReceiptPage() {
                       : "—",
                   ],
                   ["Route", receipt.mode || "—"],
-                  ["Venue", receipt.vendor || "—"],
+                  ["OpenVenue", receipt.vendor || "—"],
                   [
                     "Session",
                     (receipt.sessionState || "—").replaceAll("_", " "),
@@ -106,7 +106,7 @@ export default function ShareReceiptPage() {
               </a>
             )}
             <Link href="/app?tab=trade" className="btn btn-primary mt-5 w-full">
-              Trade on Venue
+              Trade on OpenVenue
             </Link>
           </div>
         )}

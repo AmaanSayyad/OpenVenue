@@ -1,5 +1,5 @@
 /**
- * Venue Tape work — paid session-aware wrapper recommendation for a ticker.
+ * OpenVenue Tape work — paid session-aware wrapper recommendation for a ticker.
  * Called from the seller `runWork` hook after ERC-8183 / B402 payment clears.
  */
 
@@ -91,7 +91,7 @@ export async function resolveVenueTape(
   };
 
   if (!json.ok || !json.decision) {
-    throw new Error(json.error || "Venue resolve failed");
+    throw new Error(json.error || "OpenVenue resolve failed");
   }
 
   const d = json.decision;
@@ -117,7 +117,7 @@ export async function resolveVenueTape(
 
 export function formatVenueTape(d: VenueTapeDeliverable): string {
   const lines = [
-    `# Venue Tape — ${d.ticker}`,
+    `# OpenVenue Tape — ${d.ticker}`,
     `Generated: ${d.generatedAt}`,
     `Session: ${d.session}`,
     `Recommendation: ${d.recommendation}`,

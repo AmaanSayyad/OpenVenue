@@ -1,7 +1,7 @@
-# Developer Experience Report - Venue
+# Developer Experience Report - OpenVenue
 
 > Hackathon: BNB Hack Tokenized Stocks Edition  
-> Project: Venue (session-aware multi-wrapper router)  
+> Project: OpenVenue (session-aware multi-wrapper router)  
 > Notes captured while integrating Binance Web3 `/build` APIs on BSC mainnet (2026-10-05).
 
 ## Onboarding
@@ -30,14 +30,14 @@
 | Signature `/build` prefix | 401 / invalid sign | Prehash must use path including `/build` + query string | `timestamp + METHOD + /build/api/...?... + body` |
 | `/api/v1/dex/aggregator/quote` | 40001 amount required | Used `fromTokenAmount` only | Pass `amount` (18-dec wei for BSC USDT) |
 | Same | 40001 userWalletAddress required for RFQ (Ondo) | Wallet omitted on resolve | Pass connected wallet; UI still shows bStock SWAP |
-| `/api/v1/dex/aggregator/approve-transaction` | - | Payload is `[{ data, dexContractAddress, gasLimit }]` with **no `to`** | `to` is the ERC-20 token itself; Venue normalizes this |
+| `/api/v1/dex/aggregator/approve-transaction` | - | Payload is `[{ data, dexContractAddress, gasLimit }]` with **no `to`** | `to` is the ERC-20 token itself; OpenVenue normalizes this |
 | RFQ outside hours | 40367 / 40369 (expected) | Hours-bound RFQ | Prefer SWAP / Off-Hours wrappers; session scorer already biases AMM off-hours |
 | `/api/v1/dex/market/rwa/tokens` | - | Returns all BSC RWAs (ondo+bstock); no xStock rows observed 2026-10-05 | Keep xStock branch; UI notes when absent |
 
 ## AI stack feedback
 
 - Wallet Skills / Agentic Wallet used? **Y** - skills installed under `.agents/skills/`; guided endpoint discovery and security pre-check framing. Raw `/build` still required for the web app.
-- `bag` / Agent Studio used? **Partial** - seller core stub at `agents/venue-tape/sellerCore.ts` calls Venue `/api/venue/resolve`. Full `bag init` + B402 merchant activation pending API key scopes + deploy wallet.
+- `bag` / Agent Studio used? **Partial** - seller core stub at `agents/venue-tape/sellerCore.ts` calls OpenVenue `/api/venue/resolve`. Full `bag init` + B402 merchant activation pending API key scopes + deploy wallet.
 - What worked / missing: Skills are excellent for CLI agent flows; OpenAPI examples for nested RWA search would cut onboarding time.
 
 ## Tokenized-stock specifics

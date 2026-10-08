@@ -47,7 +47,7 @@ const STEPS = [
   {
     n: "05",
     t: "Park",
-    d: "If nothing quotes, Venue builds a deposit for idle USDT instead of leaving cash sitting.",
+    d: "If nothing quotes, OpenVenue builds a deposit for idle USDT instead of leaving cash sitting.",
   },
 ];
 
@@ -67,11 +67,11 @@ export default function HowItWorksPage() {
             </h1>
             <p className="mt-4 text-[17px] leading-relaxed text-[var(--ink-soft)]">
               The same company can trade as a bStock, an Ondo token, or an
-              xStock. Venue picks the one that is live, checks the size, and
+              xStock. OpenVenue picks the one that is live, checks the size, and
               only then asks you to sign.
             </p>
             <Link href="/app" className="btn btn-primary mt-6">
-              Open Venue
+              Launch OpenVenue
             </Link>
           </div>
 
@@ -130,7 +130,7 @@ export default function HowItWorksPage() {
             Find a wrapper, check the size, simulate, then sign or park.
           </p>
           <Link href="/app" className="btn btn-on-dark mt-6">
-            Open Venue
+            Launch OpenVenue
           </Link>
         </section>
       </div>

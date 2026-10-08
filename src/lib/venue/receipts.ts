@@ -1,4 +1,4 @@
-/** Receipts + cost-basis persistence for the Venue desk. */
+/** Receipts + cost-basis persistence for the OpenVenue desk. */
 
 export type TradeReceipt = {
   id: string;

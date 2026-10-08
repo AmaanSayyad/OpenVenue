@@ -97,7 +97,7 @@ const FEATURES = [
   },
   {
     t: "Idle cash parking",
-    d: "When equity venues go quiet, Venue builds a DeFi deposit path so USDT doesn't sit idle.",
+    d: "When equity venues go quiet, OpenVenue builds a DeFi deposit path so USDT doesn't sit idle.",
   },
   {
     t: "Risk & size ladders",
@@ -200,7 +200,7 @@ function ScrollHero() {
           style={{ y: captionY, opacity: captionOpacity }}
           className="absolute inset-x-0 top-[82%] z-10 mx-auto max-w-xl px-6 text-center text-[15px] leading-relaxed text-[var(--ink)] sm:text-[16px]"
         >
-          Venue picks the live wrapper - bStocks, Ondo, or xStocks - by US
+          OpenVenue picks the live wrapper - bStocks, Ondo, or xStocks - by US
           session hours, simulates every route, then executes on mainnet.
         </motion.p>
 
@@ -247,7 +247,7 @@ const DESKS = [
   {
     id: "park",
     name: "Park",
-    body: "When equity venues are closed, Venue builds a DeFi deposit for leftover USDT. Pools that reject BSC USDT are left off the list.",
+    body: "When equity venues are closed, OpenVenue builds a DeFi deposit for leftover USDT. Pools that reject BSC USDT are left off the list.",
     pill: "Idle USDT",
     accent: "#1f9d55",
     soft: "#eef8f2",
@@ -578,7 +578,7 @@ export default function HomePage() {
       <section className="bg-white pb-8 pt-4 sm:pb-16">
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 lg:grid-cols-2">
           <h2 className="display max-w-md text-[clamp(1.8rem,3vw,2.5rem)] leading-[1.15] tracking-[-0.03em] text-[var(--ink-soft)]">
-            Venue keeps the wrapper that is{" "}
+            OpenVenue keeps the wrapper that is{" "}
             <span className="text-[var(--ink)]">actually open.</span>
           </h2>
           <dl className="divide-y divide-black/10">
@@ -673,7 +673,7 @@ export default function HomePage() {
 
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link href="/app" className="btn btn-on-dark">
-              Explore Venue
+              Explore OpenVenue
             </Link>
             <Link href="/how-it-works" className="btn btn-glass">
               Read the flow
@@ -699,7 +699,7 @@ export default function HomePage() {
                 </div>
                 {(
                   [
-                    { label: "Venue", boxed: true },
+                    { label: "OpenVenue", boxed: true },
                     { label: "Single wrapper", boxed: false },
                     { label: "Brokers", boxed: false },
                   ]
@@ -817,7 +817,7 @@ export default function HomePage() {
               Three wrappers.
             </h2>
             <p className="mt-6 max-w-[420px] text-[17px] leading-relaxed text-white/60">
-              Build investing experiences on top of Venue&apos;s resolve, ladder,
+              Build investing experiences on top of OpenVenue&apos;s resolve, ladder,
               simulate, and park APIs - or sell tape data over the Agent Studio face.
             </p>
             <Link href="/how-it-works" className="btn btn-glass mt-8">

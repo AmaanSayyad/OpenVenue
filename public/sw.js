@@ -1,4 +1,4 @@
-/* Venue PWA shell - cache app shell only. */
+/* OpenVenue PWA shell - cache app shell only. */
 const CACHE = "venue-shell-v2";
 const PRECACHE = ["/", "/app", "/manifest.webmanifest", "/brand/mark.svg"];
 

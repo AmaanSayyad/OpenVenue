@@ -18,14 +18,14 @@ export function SiteFooter({ compact = false }: { compact?: boolean }) {
               : "text-[clamp(3.5rem,12vw,7rem)]",
           )}
         >
-          Venue
+          OpenVenue
         </p>
       </div>
       <div className="border-t border-black/[0.08]">
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-x-7 gap-y-2 text-[13px] leading-none">
             <span className="font-semibold text-black">
-              Venue © {new Date().getFullYear()}
+              OpenVenue © {new Date().getFullYear()}
             </span>
             <Link
               href="/how-it-works"
@@ -59,7 +59,7 @@ export function SiteFooter({ compact = false }: { compact?: boolean }) {
               </svg>
             </a>
             <a
-              href="https://github.com/AmaanSayyad/Venue"
+              href="https://github.com/AmaanSayyad/OpenVenue"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="GitHub"

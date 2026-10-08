@@ -1,10 +1,10 @@
 {
-  "name": "venue",
+  "name": "openvenue",
   "version": "0.1.0",
   "private": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/AmaanSayyad/Venue.git"
+    "url": "https://github.com/AmaanSayyad/OpenVenue.git"
   },
   "scripts": {
     "dev": "next dev",

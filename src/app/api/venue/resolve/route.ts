@@ -32,7 +32,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ ok: true, decision, side });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Venue resolve failed";
+    const message = err instanceof Error ? err.message : "OpenVenue resolve failed";
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }

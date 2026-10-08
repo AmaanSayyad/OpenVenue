@@ -4,7 +4,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 
 export const metadata = {
-  title: "Venue Tape - Marketplace",
+  title: "OpenVenue Tape - Marketplace",
   description:
     "A $0.05 desk note: which tokenized-stock wrapper to use on BNB Chain right now.",
 };
@@ -31,7 +31,7 @@ const DELIVERS = [
 ];
 
 const STEPS = [
-  "Create a seller wallet for Venue Tape.",
+  "Create a seller wallet for OpenVenue Tape.",
   "Point it at this site.",
   "Register the agent so buyers can find it.",
   "Turn on the $0.05 payment.",
@@ -56,10 +56,10 @@ export default function MarketplacePage() {
           <div>
             <p className="text-sm font-medium text-[var(--ink-soft)]">Marketplace</p>
             <h1 className="display mt-2 text-4xl leading-[1.02] tracking-[-0.03em] sm:text-6xl">
-              Venue Tape
+              OpenVenue Tape
             </h1>
             <p className="mt-4 max-w-md text-[17px] leading-relaxed text-[var(--ink-soft)]">
-              A buyer asks which wrapper to use. Venue answers with the live
+              A buyer asks which wrapper to use. OpenVenue answers with the live
               route for that stock, for $0.05.
             </p>
             <div className="mt-6 flex flex-wrap gap-2">

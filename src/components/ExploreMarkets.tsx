@@ -271,7 +271,7 @@ export function ExploreMarkets({
               Best venue.
             </h2>
             <p className="mt-2 max-w-md text-[13px] leading-snug text-white/65">
-              One name, quoted across the wrappers on BNB Chain. Venue uses
+              One name, quoted across the wrappers on BNB Chain. OpenVenue uses
               the one that is actually open.
             </p>
             <button

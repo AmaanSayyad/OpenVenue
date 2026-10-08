@@ -25,7 +25,7 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Venue - Session-aware tokenized stocks on BSC",
+  title: "OpenVenue - Session-aware tokenized stocks on BSC",
   description:
     "Institutional-grade routing across bStocks, Ondo, and xStocks on BNB Smart Chain. Simulate, execute, park idle cash.",
   manifest: "/manifest.webmanifest",
@@ -35,11 +35,11 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: "Venue",
+    title: "OpenVenue",
     statusBarStyle: "default",
   },
   openGraph: {
-    title: "Venue",
+    title: "OpenVenue",
     description: "Session-aware tokenized stock router on BNB Smart Chain.",
   },
 };

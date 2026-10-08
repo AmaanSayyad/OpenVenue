@@ -1,5 +1,5 @@
 /**
- * Venue Tape - BNB Agent Studio seller core (drop into a `bag init` project).
+ * OpenVenue Tape - BNB Agent Studio seller core (drop into a `bag init` project).
  *
  * What it sells: a paid session-aware venue recommendation for a ticker
  * (bStocks vs Ondo vs xStocks), meant to be exposed over x402 / ERC-8183.
@@ -7,7 +7,7 @@
  * Scaffold with:
  *   bag init venue-tape --network bsc-mainnet
  * then replace app/agent/src/sellerCore.ts with this module's runWork logic
- * (or import resolveVenue from the Venue app package).
+ * (or import resolveVenue from the OpenVenue app package).
  */
 
 export type VenueTapeInput = {
@@ -50,7 +50,7 @@ export async function runWork(input: VenueTapeInput): Promise<VenueTapeDeliverab
   const res = await fetch(`${base}/api/venue/resolve?${qs}`);
   const json = await res.json();
   if (!json.ok) {
-    throw new Error(json.error || "Venue resolve failed");
+    throw new Error(json.error || "OpenVenue resolve failed");
   }
 
   const d = json.decision;

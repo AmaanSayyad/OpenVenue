@@ -26,9 +26,9 @@ const NEGOTIATE: AgentSkill = {
   id: "negotiate",
   name: "Negotiate an ERC-8183 job",
   description:
-    "Buy a Venue Tape: session-aware bStocks / Ondo / xStocks routing for a " +
+    "Buy a OpenVenue Tape: session-aware bStocks / Ondo / xStocks routing for a " +
     "US ticker on BSC. Send " +
-    '{"skill": "negotiate", "task_description": "Venue tape for NVDA $15", ' +
+    '{"skill": "negotiate", "task_description": "OpenVenue tape for NVDA $15", ' +
     '"terms": {"deliverables": "markdown venue recommendation", ' +
     '"quality_standards": "live Binance Web3 quotes only"}} and receive a ' +
     "wallet-signed price quote. Fund on-chain, then `notify_funded`.",

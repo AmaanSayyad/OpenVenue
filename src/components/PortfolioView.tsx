@@ -956,7 +956,7 @@ export function PortfolioView({
           <div>
             <h3 className="display text-2xl">Investors Also Own</h3>
             <p className="mt-1 text-sm text-[var(--ink-soft)]">
-              Start building with Venue&apos;s most traded wrappers on BNB
+              Start building with OpenVenue&apos;s most traded wrappers on BNB
               Chain.
             </p>
           </div>

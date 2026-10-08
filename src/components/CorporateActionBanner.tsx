@@ -58,7 +58,7 @@ export function CorporateActionBanner({
         {action.message
           ? `Corporate action: ${action.label} (${action.message}).`
           : `${action.label} may restrict RFQ / AMM fills for ${ticker}.`}{" "}
-        Venue will prefer wrappers that still quote, or park USDT if none.
+        OpenVenue will prefer wrappers that still quote, or park USDT if none.
       </p>
     </div>
   );

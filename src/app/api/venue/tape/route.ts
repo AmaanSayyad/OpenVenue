@@ -4,7 +4,7 @@ import { resolveVenue } from "@/lib/venue/router";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Free preview of the paid Venue Tape deliverable (x402/B402 sells this). */
+/** Free preview of the paid OpenVenue Tape deliverable (x402/B402 sells this). */
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);

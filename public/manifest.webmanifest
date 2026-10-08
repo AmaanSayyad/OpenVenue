@@ -1,6 +1,6 @@
 {
-  "name": "Venue",
-  "short_name": "Venue",
+  "name": "OpenVenue",
+  "short_name": "OpenVenue",
   "description": "Session-aware tokenized stock desk on BNB Chain",
   "start_url": "/app",
   "display": "standalone",

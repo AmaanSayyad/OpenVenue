@@ -1,17 +1,17 @@
-# Venue Tape (Agent Studio seller)
+# OpenVenue Tape (Agent Studio seller)
 
 Paid session-aware venue recommendations for tokenized stocks on BSC.
 
 ## Layout
 
 - Scaffold: [`../../venuetape`](../../venuetape) (`bag init venuetape`)
-- Work hook: `venuetape/app/agent/src/venueWork.ts` → calls Venue `GET /api/venue/resolve`
+- Work hook: `venuetape/app/agent/src/venueWork.ts` → calls OpenVenue `GET /api/venue/resolve`
 - Price: `$0.05` per job (ERC-8183 + x402/B402) on `bsc-mainnet`
 
 ## Local run
 
 ```bash
-# Terminal A - Venue app
+# Terminal A - OpenVenue app
 cd ../.. && npm run dev
 
 # Terminal B - seller

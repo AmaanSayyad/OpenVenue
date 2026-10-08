@@ -24,7 +24,7 @@ function decodePayment(header: string): unknown | null {
 }
 
 /**
- * Official B402 V2 face for Venue Tape ($0.05 BSC USDT).
+ * Official B402 V2 face for OpenVenue Tape ($0.05 BSC USDT).
  * 1. POST /api/v2/b402/supported (signed with OC_API_KEY)
  * 2. HTTP 402 whose `extra` is copied from kinds[]
  * 3. On PAYMENT-SIGNATURE: verify, then settle, then deliver
@@ -85,7 +85,7 @@ export async function GET(req: Request) {
     x402Version: 2,
     resource: {
       url: url.origin + url.pathname + url.search,
-      description: "Venue Tape resolve",
+      description: "OpenVenue Tape resolve",
       mimeType: "application/json",
     },
     accepts: [requirement],

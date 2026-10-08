@@ -5,7 +5,7 @@ import { bsc } from "@reown/appkit/networks";
 import { projectId, wagmiAdapter } from "@/config";
 
 const metadata = {
-  name: "Venue",
+  name: "OpenVenue",
   description: "Session-aware tokenized stocks on BNB Chain",
   url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
   icons: ["https://avatars.githubusercontent.com/u/179229932"],

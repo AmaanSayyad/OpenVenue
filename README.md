@@ -1,18 +1,18 @@
-# Venue
+# OpenVenue
 
 **Session-aware tokenized stock desk on BNB Smart Chain.**
 
-Say you want NVDA. Venue finds the live wrapper among **bStocks**, **Ondo**, and **xStocks**, scores SWAP vs RFQ under US market hours, simulates the route, and executes spot on BSC mainnet. When equity venues are quiet, it parks idle USDT in BSC DeFi.
+Say you want NVDA. OpenVenue finds the live wrapper among **bStocks**, **Ondo**, and **xStocks**, scores SWAP vs RFQ under US market hours, simulates the route, and executes spot on BSC mainnet. When equity venues are quiet, it parks idle USDT in BSC DeFi.
 
 Built for [BNB Hack: Tokenized Stocks Edition](https://www.bnbchain.org/en/hackathons/tokenized-stocks).
 
-Source: [github.com/AmaanSayyad/Venue](https://github.com/AmaanSayyad/Venue)
+Source: [github.com/AmaanSayyad/OpenVenue](https://github.com/AmaanSayyad/OpenVenue)
 
 ---
 
 ## What did you build?
 
-**Venue** - a session-aware tokenized stock desk and paid agent tape on **BNB Smart Chain**.
+**OpenVenue** - a session-aware tokenized stock desk and paid agent tape on **BNB Smart Chain**.
 
 ### What it does
 
@@ -21,7 +21,7 @@ Source: [github.com/AmaanSayyad/Venue](https://github.com/AmaanSayyad/Venue)
 - Executes **spot** swaps / RFQs from a connected wallet on BSC mainnet; confirms fills and updates cost basis.
 - Shows explore markets, charts, stats, corporate actions, fee preview, quote expiry, Limit/TWAP, strategies, portfolio, and shareable receipts.
 - When equity venues are quiet or spreads blow out, **parks idle USDT** into BSC DeFi earn options.
-- Monitors the same resolve engine as **Venue Tape** (~$0.05 / job) so other agents can buy recommendations over ERC-8183 / x402 / B402.
+- Monitors the same resolve engine as **OpenVenue Tape** (~$0.05 / job) so other agents can buy recommendations over ERC-8183 / x402 / B402.
 
 ### Who it is for
 
@@ -30,7 +30,7 @@ Source: [github.com/AmaanSayyad/Venue](https://github.com/AmaanSayyad/Venue)
 | Crypto-native equity traders | One desk instead of three wrapper UIs |
 | Session-aware / power users | Watchlist, alerts, TWAP, strategies, corporate-action banners |
 | Idle USDT holders | One-tap park when markets are closed |
-| Agent builders & A2A buyers | Paid Venue Tape deliverable from the same resolve API |
+| Agent builders & A2A buyers | Paid OpenVenue Tape deliverable from the same resolve API |
 | Hackathon reviewers | Runnable mainnet demo + DX report |
 
 Spot only. No perps. Users fund their own wallets.
@@ -107,9 +107,9 @@ Tokenized US equities on BNB Chain are finally liquid enough to trade - but they
 | **Ondo** | Attestation-backed (`NVDAon`), often RFQ-gated to market hours |
 | **xStocks** | 24/7 AMM-first (`NVDAx`) when listed |
 
-Most desks force the user to pick a brand, a venue, and a mode. Ondo-style product UX (explore → asset → ticket) inspired the surface; Binance Web3 `/build` APIs + Agentic Wallet skills inspired the execution path; BNB Agent Studio inspired the paid **Venue Tape** seller so agents can buy the same resolve logic over ERC-8183 / x402 / B402.
+Most desks force the user to pick a brand, a venue, and a mode. Ondo-style product UX (explore → asset → ticket) inspired the surface; Binance Web3 `/build` APIs + Agentic Wallet skills inspired the execution path; BNB Agent Studio inspired the paid **OpenVenue Tape** seller so agents can buy the same resolve logic over ERC-8183 / x402 / B402.
 
-Venue is the desk that treats “buy NVDA with USDT on BSC” as one intent - and does the wrapper / session / simulation work underneath.
+OpenVenue is the desk that treats “buy NVDA with USDT on BSC” as one intent - and does the wrapper / session / simulation work underneath.
 
 ---
 
@@ -125,7 +125,7 @@ Venue is the desk that treats “buy NVDA with USDT on BSC” as one intent - an
 
 ## Solution
 
-**Venue** is a Next.js desk + API router that:
+**OpenVenue** is a Next.js desk + API router that:
 
 1. Resolves a human ticker → multi-wrapper candidates via Binance RWA search / tokens.
 2. Scores candidates with a **session-aware** router (RFQ bias in US hours, AMM bias off-hours; spread penalties).
@@ -133,14 +133,14 @@ Venue is the desk that treats “buy NVDA with USDT on BSC” as one intent - an
 4. Builds approve + swap (or EIP-712 RFQ), runs **simulation gate**, then signs on the user’s wallet (wagmi / viem, BSC `56`).
 5. Confirms fill on-chain, updates cost basis / PnL, and issues a **shareable receipt**.
 6. Falls back to **Park USDT** on BSC DeFi when equity routes fail.
-7. Exposes the same resolve work as a paid seller agent (**Venue Tape**, ~$0.05 / job) via `venuetape/`.
+7. Exposes the same resolve work as a paid seller agent (**OpenVenue Tape**, ~$0.05 / job) via `venuetape/`.
 
 ---
 
 ## Why we built it
 
 - Tokenized stocks on BSC only win if UX feels like a single equity product, not three DEX tabs.
-- Hackathon scoring rewards real `/build` integration, DX honesty, and agent monetization - Venue ships all three: desk UI, [`docs/DX-REPORT.md`](./docs/DX-REPORT.md), and Studio seller.
+- Hackathon scoring rewards real `/build` integration, DX honesty, and agent monetization - OpenVenue ships all three: desk UI, [`docs/DX-REPORT.md`](./docs/DX-REPORT.md), and Studio seller.
 - We wanted a path from **retail click** → **mainnet fill** → **agent-paid tape** on the same resolve engine.
 
 ---
@@ -152,7 +152,7 @@ Venue is the desk that treats “buy NVDA with USDT on BSC” as one intent - an
 | **Crypto-native equity traders** | Explore markets, compare wrappers, one-tap best venue, portfolio + sell |
 | **Session-aware power users** | Watchlist alerts, corporate-action banners, Limit / TWAP desk, saved strategies |
 | **Idle-capital holders** | Park / unpark USDT when venues are quiet |
-| **Agent builders & A2A buyers** | Paid Venue Tape over ERC-8183 + x402/B402 |
+| **Agent builders & A2A buyers** | Paid OpenVenue Tape over ERC-8183 + x402/B402 |
 | **Hackathon judges / reviewers** | Runnable mainnet demo, DX report, marketplace listing page |
 
 **Not for:** perps, leverage, custodial brokerage, or off-chain equity settlement. Spot RWA wrappers on BSC only. Teams fund their own wallets.
@@ -185,7 +185,7 @@ Venue is the desk that treats “buy NVDA with USDT on BSC” as one intent - an
 
 | Area | Capability |
 | --- | --- |
-| **Venue Tape** | `$0.05` / job session-aware resolve + ladder snapshot |
+| **OpenVenue Tape** | `$0.05` / job session-aware resolve + ladder snapshot |
 | **Rails** | ERC-8183 · x402 · B402 (Pieverse LLM optional polish) |
 | **Listing UI** | [`/marketplace`](./src/app/marketplace/page.tsx) publish checklist |
 | **Scaffold** | [`venuetape/`](./venuetape) (`bag init`) |
@@ -202,7 +202,7 @@ Venue is the desk that treats “buy NVDA with USDT on BSC” as one intent - an
 └────────────────────────────┬────────────────────────────────────┘
                              │ /api/venue/*
 ┌────────────────────────────▼────────────────────────────────────┐
-│  Venue API routes (server)                                      │
+│  OpenVenue API routes (server)                                      │
 │  resolve · build · rfq · ladder · park · stats · chart · …      │
 │  HMAC to Binance Web3 /build  (OC_API_KEY + OC_SECRET_KEY)      │
 └───────┬───────────────────────┬───────────────────┬─────────────┘
@@ -216,7 +216,7 @@ Venue is the desk that treats “buy NVDA with USDT on BSC” as one intent - an
                          └──────────────► bestQuote + fallback park
 
 ┌─────────────────────────────────────────────────────────────────┐
-│  Venue Tape seller (venuetape/)                                 │
+│  OpenVenue Tape seller (venuetape/)                                 │
 │  bag / ERC-8004 identity · ERC-8183 job · x402/B402 face        │
 │  venueWork.ts  →  GET {VENUE_APP_URL}/api/venue/resolve         │
 └─────────────────────────────────────────────────────────────────┘
@@ -242,7 +242,7 @@ Venue is the desk that treats “buy NVDA with USDT on BSC” as one intent - an
 sequenceDiagram
   autonumber
   actor U as User
-  participant UI as Venue UI
+  participant UI as OpenVenue UI
   participant API as /api/venue/resolve
   participant R as Router
   participant BX as Binance /build
@@ -267,7 +267,7 @@ sequenceDiagram
 sequenceDiagram
   autonumber
   actor U as User
-  participant UI as Venue UI
+  participant UI as OpenVenue UI
   participant Build as /api/venue/build
   participant BX as Binance /build
   participant W as Wallet (wagmi)
@@ -298,7 +298,7 @@ sequenceDiagram
 sequenceDiagram
   autonumber
   actor U as User
-  participant UI as Venue UI
+  participant UI as OpenVenue UI
   participant Build as /api/venue/build
   participant RFQ as /api/venue/rfq
   participant BX as Binance /build
@@ -316,24 +316,24 @@ sequenceDiagram
   RFQ-->>UI: submitted
 ```
 
-### 4. Venue Tape (agent buyer → paid resolve)
+### 4. OpenVenue Tape (agent buyer → paid resolve)
 
 ```mermaid
 sequenceDiagram
   autonumber
   actor B as Buyer agent
-  participant Tape as Venue Tape (bag)
+  participant Tape as OpenVenue Tape (bag)
   participant Pay as ERC-8183 / x402 / B402
   participant Work as venueWork.ts
-  participant Venue as Venue /api/venue/resolve
+  participant OpenVenue as OpenVenue /api/venue/resolve
 
   B->>Tape: Job request (ticker / size)
   Tape->>Pay: Quote fixed $0.05 (deterministic)
   B->>Pay: Fund / settle
   Pay-->>Tape: Paid
   Tape->>Work: Run seller work
-  Work->>Venue: GET resolve (+ ladder)
-  Venue-->>Work: Decision JSON
+  Work->>OpenVenue: GET resolve (+ ladder)
+  OpenVenue-->>Work: Decision JSON
   Work-->>Tape: Deliverable (resolve snapshot)
   Tape-->>B: Result + receipt
 ```
@@ -359,19 +359,19 @@ sequenceDiagram
 
 | Stream | How it works | Status |
 | --- | --- | --- |
-| **Venue Tape ($0.05 / job)** | Agents pay USDT/U/USD1/USDC via ERC-8183 or x402/B402 for resolve + ladder | Scaffold live in `venuetape/` |
+| **OpenVenue Tape ($0.05 / job)** | Agents pay USDT/U/USD1/USDC via ERC-8183 or x402/B402 for resolve + ladder | Scaffold live in `venuetape/` |
 | **Desk distribution** | Free retail UI drives tape demand and wrapper volume on BSC | Shipped |
 | **Future: routing fee** | Optional bps on successful fills (transparent, post-sim) | Roadmap |
 | **Future: strategy / alerts SaaS** | Premium watch + TWAP automation | Roadmap |
 
-Hackathon posture: **no custody**, spot only, users pay gas + venue fees; Venue earns on **agent jobs** first.
+Hackathon posture: **no custody**, spot only, users pay gas + venue fees; OpenVenue earns on **agent jobs** first.
 
 ---
 
 ## Go-to-market
 
 1. **Hackathon launch** - Demo mainnet NVDA round-trip; submit DX report + project forms.
-2. **BNB ecosystem** - List Venue Tape on Bazaar / Studio catalogs; deep-link from `/marketplace`.
+2. **BNB ecosystem** - List OpenVenue Tape on Bazaar / Studio catalogs; deep-link from `/marketplace`.
 3. **Creator / agent loops** - Shareable receipts (`/receipt/[id]`) and PWA install for mobile desk habit.
 4. **Wrapper issuers** - Surface attestation + corporate actions so Ondo / bStock / xStock users land in one UI.
 5. **Content** - How-it-works page, short demo video (≤ 4 min), DX write-up as trust collateral.
@@ -429,9 +429,9 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) → **Open Venue** → `/app`.
+Open [http://localhost:3000](http://localhost:3000) → **Launch OpenVenue** → `/app`.
 
-### Venue Tape seller (optional)
+### OpenVenue Tape seller (optional)
 
 ```bash
 # Terminal A - desk API
@@ -541,7 +541,7 @@ BNBhack/
 
 | Doc | Path |
 | --- | --- |
-| Venue Tape agent | [`agents/venue-tape/README.md`](./agents/venue-tape/README.md) |
+| OpenVenue Tape agent | [`agents/venue-tape/README.md`](./agents/venue-tape/README.md) |
 | Studio workspace | [`venuetape/README.md`](./venuetape/README.md) |
 | Env template | [`.env.example`](./.env.example) |
 

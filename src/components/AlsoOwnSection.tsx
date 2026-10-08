@@ -160,7 +160,7 @@ export function AlsoOwnSection({
         </button>
       </div>
       <p className="mt-2 text-sm text-[var(--ink-soft)]">
-        Start building your portfolio with Venue&apos;s latest tokenized stock
+        Start building your portfolio with OpenVenue&apos;s latest tokenized stock
         opportunities on BNB Chain.
       </p>
 

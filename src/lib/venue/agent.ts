@@ -1,5 +1,5 @@
 /**
- * Lightweight NL intent parser for Venue agent mode.
+ * Lightweight NL intent parser for OpenVenue agent mode.
  * Examples: "buy $20 NVDA best venue", "sell half NVDAB", "park usdt"
  */
 

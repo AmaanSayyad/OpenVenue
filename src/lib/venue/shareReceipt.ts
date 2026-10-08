@@ -33,7 +33,7 @@ export async function copyShareReceipt(receipt: TradeReceipt) {
   const id = publishShareReceipt(receipt);
   const url = shareReceiptUrl(id);
   const text = [
-    `Venue trade receipt`,
+    `OpenVenue trade receipt`,
     `${receipt.side.toUpperCase()} ${receipt.symbol || receipt.ticker}`,
     `Amount: ${receipt.amountLabel}`,
     receipt.outAmountHuman ? `Out: ${receipt.outAmountHuman}` : null,
@@ -50,7 +50,7 @@ export async function copyShareReceipt(receipt: TradeReceipt) {
 
   if (navigator.share) {
     try {
-      await navigator.share({ title: "Venue receipt", text, url });
+      await navigator.share({ title: "OpenVenue receipt", text, url });
       return { ok: true as const, url, shared: true };
     } catch {
       /* fall through to clipboard */

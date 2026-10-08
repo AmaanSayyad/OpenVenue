@@ -192,7 +192,7 @@ function defaultNetwork(): string {
 // URL, but who gets paid and the per-call/daily caps stay locked in
 // studio.toml.)
 export function buildRunWork(): RunWork {
-  // Venue Tape: deterministic live resolve first (no LLM required for the
+  // OpenVenue Tape: deterministic live resolve first (no LLM required for the
   // core deliverable). Optional LLM polish only if VENUE_TAPE_LLM=1.
   return async (prompt, { abortSignal }) => {
     const { formatVenueTape, resolveVenueTape } = await import("./venueWork.js");
@@ -205,7 +205,7 @@ export function buildRunWork(): RunWork {
     const result = await generateText({
       model,
       system:
-        "You are Venue Tape. Summarize the structured venue recommendation " +
+        "You are OpenVenue Tape. Summarize the structured venue recommendation " +
         "for a retail trader in ≤120 words. Do not invent prices. Keep the " +
         "recommendation symbol and execution mode exact.",
       prompt: `${prompt}\n\nSTRUCTURED TAPE:\n${base}`,
