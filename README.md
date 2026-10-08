@@ -8,6 +8,8 @@ Built for [BNB Hack: Tokenized Stocks Edition](https://www.bnbchain.org/en/hacka
 
 Source: [github.com/AmaanSayyad/OpenVenue](https://github.com/AmaanSayyad/OpenVenue)
 
+Live: [openvenue.xyz](https://openvenue.xyz)
+
 ---
 
 ## What did you build?
@@ -398,7 +400,7 @@ Copy [`.env.example`](./.env.example) → `.env.local`:
 | --- | --- | --- |
 | `OC_API_KEY` | **Yes** | Binance Web3 Dev Portal API key |
 | `OC_SECRET_KEY` | **Yes** | HMAC secret (server-only; never expose to client) |
-| `NEXT_PUBLIC_APP_URL` | Recommended | Public origin, default `http://localhost:3000` |
+| `NEXT_PUBLIC_APP_URL` | Recommended | Public origin. Production is `https://openvenue.xyz`. Local dev stays `http://localhost:3000` |
 | `NEXT_PUBLIC_CHAIN_ID` | Optional | Default `56` (BSC mainnet) |
 | `DEMO_PRIVATE_KEY` | No | Server-side demo signing only - never commit |
 | `VENUE_APP_URL` | For seller | Base URL the Tape agent calls (e.g. `http://127.0.0.1:3000`) |

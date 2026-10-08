@@ -25,6 +25,7 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://openvenue.xyz"),
   title: "OpenVenue - Session-aware tokenized stocks on BSC",
   description:
     "Institutional-grade routing across bStocks, Ondo, and xStocks on BNB Smart Chain. Simulate, execute, park idle cash.",

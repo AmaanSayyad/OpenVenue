@@ -7,7 +7,7 @@ import { projectId, wagmiAdapter } from "@/config";
 const metadata = {
   name: "OpenVenue",
   description: "Session-aware tokenized stocks on BNB Chain",
-  url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+  url: process.env.NEXT_PUBLIC_APP_URL || "https://openvenue.xyz",
   icons: ["https://avatars.githubusercontent.com/u/179229932"],
 };
 
