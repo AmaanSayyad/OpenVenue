@@ -20,7 +20,7 @@ export default function ShareReceiptPage() {
   }, [id]);
 
   return (
-    <main className="min-h-screen bg-[#f7f7f7]">
+    <main className="flex min-h-screen flex-col bg-[#f7f7f7]">
       <SiteHeader variant="solid" />
       <div className="mx-auto max-w-lg px-5 pb-4 pt-28">
         <p className="text-sm text-[var(--ink-soft)]">Shared receipt</p>

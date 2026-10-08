@@ -103,7 +103,7 @@ export default function AppPage() {
   return (
     <Suspense
       fallback={
-        <main className="min-h-screen bg-[#f7f7f7]">
+        <main className="flex min-h-screen flex-col bg-[#f7f7f7]">
           <SiteHeader variant="solid" />
           <div className="mx-auto max-w-6xl px-5 pt-28 text-sm text-[var(--ink-soft)]">
             Loading desk…
@@ -1424,7 +1424,7 @@ function AppPageInner() {
   );
 
   return (
-    <main className="min-h-screen bg-[#f7f7f7]">
+    <main className="flex min-h-screen flex-col bg-[#f7f7f7]">
       <SiteHeader
         variant="solid"
         end={<AlertBell alerts={alerts} onChange={setAlerts} />}

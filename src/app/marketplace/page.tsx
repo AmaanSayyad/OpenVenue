@@ -49,7 +49,7 @@ const NAMES = [
 
 export default function MarketplacePage() {
   return (
-    <main className="min-h-screen bg-[#f7f7f7]">
+    <main className="flex min-h-screen flex-col bg-[#f7f7f7]">
       <SiteHeader variant="solid" />
       <div className="mx-auto max-w-5xl px-5 pb-6 pt-28">
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">

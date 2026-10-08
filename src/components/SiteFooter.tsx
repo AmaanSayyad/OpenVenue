@@ -3,7 +3,7 @@ import clsx from "clsx";
 
 export function SiteFooter({ compact = false }: { compact?: boolean }) {
   return (
-    <footer className="bg-white">
+    <footer className="mt-auto bg-white">
       <div
         className={clsx(
           "mx-auto max-w-6xl px-5",

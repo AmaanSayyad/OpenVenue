@@ -473,7 +473,7 @@ function Status({ kind }: { kind: string }) {
 export default function HomePage() {
   const reduceMotion = useReducedMotion();
   return (
-    <main>
+    <main className="flex min-h-screen flex-col">
       <SiteHeader variant="dark" announce />
 
       <ScrollHero />
