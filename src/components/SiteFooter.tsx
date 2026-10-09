@@ -41,6 +41,14 @@ export function SiteFooter() {
             >
               Pitch deck
             </a>
+            <a
+              href="https://youtu.be/75Z0NS4IlZI"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#626262] transition hover:text-black"
+            >
+              Demo
+            </a>
           </div>
           <div className="flex items-center gap-5">
             <a

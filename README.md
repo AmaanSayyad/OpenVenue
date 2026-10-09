@@ -10,6 +10,7 @@ Say you want NVDA. OpenVenue finds the live wrapper among **bStocks**, **Ondo**,
 | Source | [github.com/AmaanSayyad/OpenVenue](https://github.com/AmaanSayyad/OpenVenue) |
 | Live | [openvenue.xyz](https://openvenue.xyz) |
 | Pitch deck | [OpenVenue](https://app.chroniclehq.com/share/0f55cc23-897b-4a17-9ae9-c430e7e7eadb/610bb562-477b-4a08-97fa-acb555e80fc0) |
+| Pitch + demo video | [OpenVenue](https://youtu.be/75Z0NS4IlZI) |
 
 ---
 
@@ -408,7 +409,7 @@ Hackathon posture: **no custody**, spot only, users pay gas + venue fees; OpenVe
 2. **BNB ecosystem** - List OpenVenue Tape on Bazaar / Studio catalogs; deep-link from `/marketplace`.
 3. **Creator / agent loops** - Shareable receipts (`/receipt/[id]`) and PWA install for mobile desk habit.
 4. **Wrapper issuers** - Surface attestation + corporate actions so Ondo / bStock / xStock users land in one UI.
-5. **Content** - How-it-works page, short demo video (≤ 4 min), DX write-up as trust collateral.
+5. **Content** - How-it-works page, [pitch + demo video](https://youtu.be/75Z0NS4IlZI), DX write-up as trust collateral.
 
 ---
 
@@ -558,6 +559,7 @@ BNBhack/
 | Marketplace listing (app) | `/marketplace` |
 | Desk | `/app` |
 | Pitch deck | https://app.chroniclehq.com/share/0f55cc23-897b-4a17-9ae9-c430e7e7eadb/610bb562-477b-4a08-97fa-acb555e80fc0 |
+| Pitch + demo video | https://youtu.be/75Z0NS4IlZI |
 
 ### Local docs in this repo
 
