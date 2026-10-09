@@ -1055,7 +1055,7 @@ function AppPageInner() {
           const detail = err instanceof Error ? err.message : "";
           throw new Error(
             /allowance/i.test(detail)
-              ? "USDT spending is not approved yet. Try again."
+              ? "Spending is not approved yet. Try the trade again."
               : "This quote would fail on BSC. Resolve again and sign right away.",
           );
         }

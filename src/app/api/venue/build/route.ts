@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
+import { createPublicClient, decodeFunctionData, erc20Abi, http, type Address } from "viem";
+import { bsc } from "viem/chains";
 import {
   buildSwap,
   getApproveTx,
   USDT_BSC,
 } from "@/lib/binance/trading";
 import { simulateEvmTx } from "@/lib/binance/transaction";
+
+const bscClient = createPublicClient({
+  chain: bsc,
+  transport: http("https://bsc-dataseed.binance.org"),
+});
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,11 +48,17 @@ export async function POST(req: Request) {
     const from = body.fromTokenAddress || USDT_BSC;
     const mode = (body.executionMode || "SWAP").toUpperCase();
 
-    const approve = await getApproveTx({
+    let approve = await getApproveTx({
       tokenContractAddress: from,
       approveAmount: body.amount,
-      vendor: mode === "RFQ" ? body.vendor : undefined,
+      vendor: body.vendor,
     });
+    if (!approve.ok && body.vendor) {
+      approve = await getApproveTx({
+        tokenContractAddress: from,
+        approveAmount: body.amount,
+      });
+    }
 
     const swap = await buildSwap({
       quoteId: body.quoteId,
@@ -86,8 +99,17 @@ export async function POST(req: Request) {
         (simulation.data as { status?: string })?.status !== "FAILED");
     // The swap is simulated before the approve is mined. A missing allowance
     // is expected; the client signs the approve, then the swap.
-    const allowancePending =
+    let allowancePending =
       !simOk && /allowance/i.test(failReason) && approve.ok;
+    if (!simOk && approve.ok && approve.data?.data && !allowancePending) {
+      allowancePending = await allowanceIsShort({
+        token: from,
+        owner: body.userWalletAddress,
+        amount: body.amount,
+        approveData: approve.data.data,
+        spenderHint: approve.data.dexContractAddress,
+      });
+    }
 
     if (body.requireSimOk !== false && simulation && !simOk && !allowancePending) {
       return NextResponse.json(
@@ -115,5 +137,34 @@ export async function POST(req: Request) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Build failed";
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
+  }
+}
+
+async function allowanceIsShort(params: {
+  token: string;
+  owner: string;
+  amount: string;
+  approveData: string;
+  spenderHint?: string;
+}) {
+  try {
+    let spender = params.spenderHint;
+    const decoded = decodeFunctionData({
+      abi: erc20Abi,
+      data: params.approveData as `0x${string}`,
+    });
+    if (decoded.functionName === "approve") {
+      spender = decoded.args[0];
+    }
+    if (!spender) return false;
+    const current = await bscClient.readContract({
+      address: params.token as Address,
+      abi: erc20Abi,
+      functionName: "allowance",
+      args: [params.owner as Address, spender as Address],
+    });
+    return current < BigInt(params.amount);
+  } catch {
+    return false;
   }
 }
