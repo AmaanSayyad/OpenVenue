@@ -1379,6 +1379,36 @@ function AppPageInner() {
       hashes.push(approveHash);
       await publicClient.waitForTransactionReceipt({ hash: approveHash });
     }
+    const instantData = encodeFunctionData({
+      abi: [
+        {
+          name: "instantRedeem",
+          type: "function",
+          stateMutability: "nonpayable",
+          inputs: [
+            { name: "shares", type: "uint256" },
+            { name: "receiver", type: "address" },
+            { name: "owner", type: "address" },
+          ],
+          outputs: [{ name: "assets", type: "uint256" }],
+        },
+      ] as const,
+      functionName: "instantRedeem",
+      args: [held, address, address],
+    });
+    let instantReady = false;
+    try {
+      await publicClient.call({ account: address, to: vault, data: instantData });
+      instantReady = true;
+    } catch {
+      instantReady = false;
+    }
+    if (instantReady) {
+      const hash = await sendTransactionAsync({ to: vault, data: instantData });
+      hashes.push(hash);
+      await publicClient.waitForTransactionReceipt({ hash });
+      return { hashes, settled: true };
+    }
     const requestData = encodeFunctionData({
       abi: [
         {
