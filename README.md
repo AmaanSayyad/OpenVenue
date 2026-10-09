@@ -9,8 +9,8 @@ Say you want NVDA. OpenVenue finds the live wrapper among **bStocks**, **Ondo**,
 | --- | --- |
 | Source | [github.com/AmaanSayyad/OpenVenue](https://github.com/AmaanSayyad/OpenVenue) |
 | Live | [openvenue.xyz](https://openvenue.xyz) |
-| Pitch deck | [OpenVenue](https://app.chroniclehq.com/share/0f55cc23-897b-4a17-9ae9-c430e7e7eadb/610bb562-477b-4a08-97fa-acb555e80fc0) |
-| Pitch + demo video | [OpenVenue](https://youtu.be/75Z0NS4IlZI) |
+| Pitch deck | [https://app.chroniclehq.com/share/0f55cc23-897b-4a17-9ae9-c430e7e7eadb/610bb562-477b-4a08-97fa-acb555e80fc0](https://app.chroniclehq.com/share/0f55cc23-897b-4a17-9ae9-c430e7e7eadb/610bb562-477b-4a08-97fa-acb555e80fc0) |
+| Pitch + demo video | [https://youtu.be/75Z0NS4IlZI](https://youtu.be/75Z0NS4IlZI) |
 
 ---
 
