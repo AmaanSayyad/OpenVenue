@@ -39,7 +39,7 @@ import { SavedStrategies } from "@/components/SavedStrategies";
 import type { DeskStrategy } from "@/lib/venue/strategies";
 import Image from "next/image";
 import type { VenueDecision } from "@/lib/venue/types";
-import { kindLabel } from "@/lib/venue/types";
+import { USDT_BSC, kindLabel } from "@/lib/venue/types";
 import { usdtAmountToWei } from "@/lib/venue/amount";
 import {
   loadHistory,
@@ -1315,29 +1315,251 @@ function AppPageInner() {
   }
 
   async function discoverVault(investmentId: string): Promise<Address | null> {
-    for (const amount of ["0.01", "0.1", "1"]) {
-      const preview = await fetch("/api/venue/park", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          address,
-          investmentId,
-          amount,
-          action: "deposit",
-        }),
-      }).then((r) => r.json());
-      const call = ((preview.data?.dataList || []) as ParkCall[]).find(
-        (row) => row.callDataType === "DEPOSIT" && row.data,
-      );
-      if (!call?.data) continue;
-      const decoded = vaultFromDepositCalldata(call.data);
-      if (decoded) return decoded;
-      if (call.to) return call.to as Address;
+    const readers = [
+      address,
+      "0x8894E0a0c962CB723c1976a4421c95949bE2D4E3",
+    ].filter((who): who is string => Boolean(who));
+    for (const who of readers) {
+      for (const amount of who === address ? ["0.01", "0.1", "1"] : ["1"]) {
+        const preview = await fetch("/api/venue/park", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            address: who,
+            investmentId,
+            amount,
+            action: "deposit",
+          }),
+        }).then((r) => r.json());
+        const call = ((preview.data?.dataList || []) as ParkCall[]).find(
+          (row) => row.callDataType === "DEPOSIT" && row.data,
+        );
+        if (!call?.data) continue;
+        const decoded = vaultFromDepositCalldata(call.data);
+        if (decoded) return decoded;
+        if (call.to) return call.to as Address;
+      }
     }
     return null;
   }
 
+  async function exitListaEarn(
+    earnPool: Address,
+  ): Promise<{ hashes: Hex[]; settled: boolean } | null> {
+    if (!publicClient || !address) return null;
+    const listaAbi = [
+      {
+        name: "lisUSDPool",
+        type: "function",
+        stateMutability: "view",
+        inputs: [],
+        outputs: [{ name: "pool", type: "address" }],
+      },
+      {
+        name: "lisUSD",
+        type: "function",
+        stateMutability: "view",
+        inputs: [],
+        outputs: [{ name: "token", type: "address" }],
+      },
+      {
+        name: "psm",
+        type: "function",
+        stateMutability: "view",
+        inputs: [{ name: "token", type: "address" }],
+        outputs: [{ name: "market", type: "address" }],
+      },
+      {
+        name: "assetBalanceOf",
+        type: "function",
+        stateMutability: "view",
+        inputs: [{ name: "account", type: "address" }],
+        outputs: [{ name: "assets", type: "uint256" }],
+      },
+      {
+        name: "poolEmissionWeights",
+        type: "function",
+        stateMutability: "view",
+        inputs: [
+          { name: "pool", type: "address" },
+          { name: "account", type: "address" },
+        ],
+        outputs: [{ name: "weight", type: "uint256" }],
+      },
+      {
+        name: "withdrawAll",
+        type: "function",
+        stateMutability: "nonpayable",
+        inputs: [{ name: "pools", type: "address[]" }],
+        outputs: [],
+      },
+      {
+        name: "withdraw",
+        type: "function",
+        stateMutability: "nonpayable",
+        inputs: [
+          { name: "pools", type: "address[]" },
+          { name: "amount", type: "uint256" },
+        ],
+        outputs: [],
+      },
+      {
+        name: "buy",
+        type: "function",
+        stateMutability: "nonpayable",
+        inputs: [{ name: "amount", type: "uint256" }],
+        outputs: [],
+      },
+    ] as const;
+    const usdt = USDT_BSC as Address;
+    let lisPool: Address;
+    let lisUsd: Address;
+    let psmAddr: Address;
+    try {
+      [lisPool, lisUsd, psmAddr] = await Promise.all([
+        publicClient.readContract({
+          address: earnPool,
+          abi: listaAbi,
+          functionName: "lisUSDPool",
+        }),
+        publicClient.readContract({
+          address: earnPool,
+          abi: listaAbi,
+          functionName: "lisUSD",
+        }),
+        publicClient.readContract({
+          address: earnPool,
+          abi: listaAbi,
+          functionName: "psm",
+          args: [usdt],
+        }),
+      ]);
+    } catch {
+      return null;
+    }
+    if (psmAddr === "0x0000000000000000000000000000000000000000") return null;
+
+    const [assets, weight] = await Promise.all([
+      publicClient.readContract({
+        address: lisPool,
+        abi: listaAbi,
+        functionName: "assetBalanceOf",
+        args: [address],
+      }),
+      publicClient.readContract({
+        address: lisPool,
+        abi: listaAbi,
+        functionName: "poolEmissionWeights",
+        args: [usdt, address],
+      }),
+    ]);
+    if (assets === 0n || weight === 0n) {
+      throw new Error("Nothing is parked in this pool.");
+    }
+
+    const pools = [usdt];
+    const allData = encodeFunctionData({
+      abi: listaAbi,
+      functionName: "withdrawAll",
+      args: [pools],
+    });
+    const partData = encodeFunctionData({
+      abi: listaAbi,
+      functionName: "withdraw",
+      args: [pools, weight],
+    });
+    let withdrawData = allData;
+    try {
+      await publicClient.call({ account: address, to: lisPool, data: allData });
+    } catch {
+      try {
+        await publicClient.call({ account: address, to: lisPool, data: partData });
+        withdrawData = partData;
+      } catch (err) {
+        const text = err instanceof Error ? err.message : "";
+        if (/withdraw delay/i.test(text)) {
+          throw new Error(
+            "This pool can be withdrawn a few seconds after it is parked. Try again.",
+          );
+        }
+        throw new Error("Lista could not withdraw this position yet.");
+      }
+    }
+
+    const hashes: Hex[] = [];
+    setStatus(
+      "Confirm the withdrawal in MetaMask. The swap back to USDT is the next prompt.",
+    );
+    const withdrawHash = await sendTransactionAsync({
+      to: lisPool,
+      data: withdrawData,
+    });
+    hashes.push(withdrawHash);
+    await publicClient.waitForTransactionReceipt({ hash: withdrawHash });
+
+    const lisBal = await publicClient.readContract({
+      address: lisUsd,
+      abi: erc20Abi,
+      functionName: "balanceOf",
+      args: [address],
+    });
+    if (lisBal < parseUnits("1", 18)) {
+      throw new Error(
+        lisBal === 0n
+          ? "Lista withdrew, but no lisUSD arrived to swap back to USDT."
+          : "lisUSD is in your wallet. Lista needs at least 1 to swap it back to USDT.",
+      );
+    }
+    const allowance = await publicClient.readContract({
+      address: lisUsd,
+      abi: erc20Abi,
+      functionName: "allowance",
+      args: [address, psmAddr],
+    });
+    if (allowance < lisBal) {
+      setStatus("Approve lisUSD in MetaMask. The swap back to USDT follows.");
+      const approveHash = await sendTransactionAsync({
+        to: lisUsd,
+        data: encodeFunctionData({
+          abi: erc20Abi,
+          functionName: "approve",
+          args: [psmAddr, lisBal],
+        }),
+      });
+      hashes.push(approveHash);
+      await publicClient.waitForTransactionReceipt({ hash: approveHash });
+    }
+    setStatus("Confirm the swap back to USDT in MetaMask.");
+    const buyHash = await sendTransactionAsync({
+      to: psmAddr,
+      data: encodeFunctionData({
+        abi: listaAbi,
+        functionName: "buy",
+        args: [lisBal],
+      }),
+    });
+    hashes.push(buyHash);
+    await publicClient.waitForTransactionReceipt({ hash: buyHash });
+    return { hashes, settled: true };
+  }
+
   async function redeemPool(
+    investmentId: string,
+  ): Promise<{ hashes: Hex[]; settled: boolean }> {
+    if (parkLock.current) {
+      throw new Error("Confirm the open MetaMask prompt first.");
+    }
+    parkLock.current = true;
+    setParkBusy(true);
+    try {
+      return await redeemPoolInner(investmentId);
+    } finally {
+      parkLock.current = false;
+      setParkBusy(false);
+    }
+  }
+
+  async function redeemPoolInner(
     investmentId: string,
   ): Promise<{ hashes: Hex[]; settled: boolean }> {
     const res = await fetch("/api/venue/park", {
@@ -1359,6 +1581,8 @@ function AppPageInner() {
     }
     const vault = await discoverVault(investmentId);
     if (!vault) throw new Error("Nothing is parked in this pool.");
+    const lista = await exitListaEarn(vault);
+    if (lista) return lista;
 
     let share: Address = vault;
     try {
@@ -2964,7 +3188,7 @@ function armedSpreadLimit(session: string | undefined, maxSpreadBps: number) {
                               }
                             }}
                           >
-                            Unpark
+                            {parkBusy ? "Confirm in wallet" : "Unpark"}
                           </button>
                         </div>
                       </li>
