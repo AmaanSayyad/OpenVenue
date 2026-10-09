@@ -474,6 +474,24 @@ a {
   flex-direction: column;
 }
 
+@keyframes tour-spotlight {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px rgba(0, 0, 0, 0.9),
+      0 0 0 6px rgba(255, 255, 255, 0.85);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px rgba(0, 0, 0, 1),
+      0 0 0 8px rgba(255, 255, 255, 1);
+  }
+}
+
+.tour-spotlight {
+  animation: tour-spotlight 1.8s ease-in-out infinite;
+}
+
 .asset-card-chart {
   flex: 1;
   margin-top: 12px;

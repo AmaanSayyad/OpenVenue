@@ -24,7 +24,8 @@ Pitch deck: [OpenVenue](https://app.chroniclehq.com/share/0f55cc23-897b-4a17-9ae
 - Scores **SWAP vs RFQ** using US equity market hours, spread, and fill quality; simulates before the user signs.
 - Executes **spot** swaps / RFQs from a connected wallet on BSC mainnet; confirms fills and updates cost basis.
 - Shows explore markets, charts, stats, corporate actions, fee preview, quote expiry, Limit/TWAP, strategies, portfolio, and shareable receipts.
-- When equity venues are quiet or spreads blow out, **parks idle USDT** into BSC DeFi earn options.
+- Opens a **10-step guide** on the first visit (or from **Guide** in the header) that walks Explore, the ticket, Park, orders, portfolio, and connect.
+- When equity venues are quiet or spreads blow out, **parks idle USDT** into BSC DeFi earn options and unparks it back to USDT.
 - Monitors the same resolve engine as **OpenVenue Tape** (~$0.05 / job) so other agents can buy recommendations over ERC-8183 / x402 / B402.
 
 ### Who it is for
@@ -176,13 +177,14 @@ OpenVenue is the desk that treats “buy NVDA with USDT on BSC” as one intent 
 | **Stats** | Token vs underlying OHLC, market cap, dividends, session limits |
 | **Risk** | Corporate-action banner, issuer meta, wrapper notes |
 | **Also Own** | Related ticker discovery from Trade |
-| **Portfolio** | BNB / USDT + RWA balances, allocation donut, one-tap sell |
+| **Portfolio** | BNB / USDT + RWA balances, allocation donut, sell from the holding, activity grouped by day |
 | **Watch** | Local watchlist + spread / session alerts |
-| **Orders** | Limit / TWAP desk (persisted locally) |
+| **Orders** | Limit / TWAP desk (persisted locally). Off-hours, the band is at least 0.15% so a pre-market pool can still fill |
 | **Strategies** | One-tap playbooks (spread cap + park fallback) |
 | **History** | Receipts, Share link → `/receipt/[id]` |
-| **Park** | BSC earn list + best-APY one-tap (sim deposit build) |
+| **Park** | USDT earn on BSC. One click approves only when allowance is short, then deposits. Unpark returns USDT |
 | **Agent tab** | NL intents into resolve / park |
+| **Guide** | Spotlight tour. First visit, header **Guide**, or `/app?tab=explore&tour=1`. Esc skips; arrows move |
 | **PWA** | Manifest + service worker + mobile bottom nav |
 
 ### Agent marketplace
@@ -415,7 +417,7 @@ Hackathon posture: **no custody**, spot only, users pay gas + venue fees; OpenVe
 
 | Phase | Items |
 | --- | --- |
-| **Now (hackathon)** | Desk + resolve/build/rfq/park · fill confirm · quote TTL · fees · Limit/TWAP · strategies · marketplace · share receipt · PWA |
+| **Now (hackathon)** | Desk + resolve/build/rfq/park · fill confirm · quote TTL · fees · Limit/TWAP · strategies · marketplace · share receipt · PWA · product guide |
 | **Next** | Streaming quote / RFQ status websockets · durable B402 replay store (M01) · production `bag deploy` (BNB trial / AWS AgentCore) |
 | **Later** | Cross-chain wrapper expand · optional fill fee · server-backed alerts · institutional size ladders · rename / brand polish |
 
@@ -502,13 +504,14 @@ WALLET=0xYourAddress VENUE_URL=http://127.0.0.1:3000 node scripts/e2e-mainnet.mj
 
 ## Mainnet demo
 
-1. Connect BSC wallet (USDT + BNB).
-2. Explore → pick **NVDA** (or AAPL / TSLA / META / SPY) at ~$10–20.
-3. Review three wrappers, spreads, recommendation, fee preview, quote timer.
-4. **Simulate & execute** - approve USDT if prompted, confirm swap.
-5. RFQ path: sign EIP-712; status via `/api/venue/rfq`.
-6. Confirm fill on BscScan; open History → Share receipt.
-7. Optional: Park idle USDT; run a saved strategy; open `/marketplace`.
+1. Open `/app`. The guide starts on the first visit, or press **Guide**.
+2. Connect BSC wallet (USDT + BNB).
+3. Explore → pick **NVDA** (or AAPL / TSLA / META / SPY) at ~$10–20.
+4. Review three wrappers, spreads, recommendation, fee preview, quote timer.
+5. **Simulate & execute** - approve USDT if prompted, confirm swap.
+6. RFQ path: sign EIP-712; status via `/api/venue/rfq`.
+7. Confirm fill on BscScan; open Portfolio → activity, then Share receipt.
+8. Optional: Park idle USDT, then Unpark to get USDT back; run a saved strategy; open `/marketplace`.
 
 Spot only. No perps. Teams fund their own wallets.
 
@@ -531,9 +534,10 @@ Spot only. No perps. Teams fund their own wallets.
 ```text
 BNBhack/
 ├── src/app/                 # Pages: landing, /app, /marketplace, /receipt/[id], APIs
-├── src/components/          # Desk UI (Explore, Trade sheet, charts, PWA nav, …)
+├── src/components/          # Desk UI (Explore, Trade sheet, charts, PWA nav, ProductTour, …)
 ├── src/lib/binance/         # Signed /build client + RWA / trade / wallet / DeFi
 ├── src/lib/venue/           # Router, session, receipts, strategies, TWAP, share
+├── src/lib/tour.ts          # Guide steps, storage keys, and tab targets
 ├── agents/venue-tape/       # Portable sellerCore + notes
 ├── venuetape/               # bag seller workspace (ERC-8183 / x402 / B402)
 ├── docs/DX-REPORT.md        # Hackathon DX write-up (25% scoring)

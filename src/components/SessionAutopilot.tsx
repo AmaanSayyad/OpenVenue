@@ -60,6 +60,7 @@ export function SessionAutopilot({
 
   return (
     <div
+      data-tour="session"
       className={clsx(
         "flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-[22px] bg-white px-3 py-2.5 ring-1 ring-black/[0.06] sm:h-[52px] sm:flex-nowrap sm:gap-3 sm:overflow-hidden sm:rounded-full sm:px-4 sm:py-0",
         className,

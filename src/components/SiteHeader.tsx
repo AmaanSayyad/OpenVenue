@@ -10,6 +10,7 @@ import "@/config/appkit";
 import clsx from "clsx";
 import { motion } from "framer-motion";
 import { NavSearch } from "@/components/NavSearch";
+import { useTour } from "@/components/ProductTour";
 
 const DESK_NAV = [
   { id: "explore", label: "Explore" },
@@ -61,6 +62,7 @@ function SiteHeaderBar({
   onDesk: boolean;
 }) {
   const { address, isConnected } = useAccount();
+  const tour = useTour();
   const { open } = useAppKit();
   const { disconnect } = useDisconnect();
   const [scrolled, setScrolled] = useState(false);
@@ -137,6 +139,7 @@ function SiteHeaderBar({
           </Link>
 
           <nav
+            data-tour="desks"
             className={clsx(
               "hidden min-w-0 flex-1 items-center gap-0.5 overflow-x-auto text-[13px] font-medium lg:flex",
               light || dark ? "text-white/85" : "text-black",
@@ -166,9 +169,22 @@ function SiteHeaderBar({
           <NavSearch dark={light || dark} solid={solid} />
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
+            {onDesk ? (
+              <button
+                type="button"
+                onClick={() => tour.start()}
+                className={clsx(
+                  "hidden h-9 items-center rounded-full px-3 text-[13px] font-medium sm:inline-flex",
+                  light || dark ? "text-white/85 hover:text-white" : "text-black/70 hover:text-black",
+                )}
+              >
+                Guide
+              </button>
+            ) : null}
             {end}
             {isConnected ? (
               <button
+                data-tour="connect"
                 className="flex h-9 items-center gap-2 rounded-full bg-[#f2f2f2] py-1 pl-1.5 pr-3 text-[#111]"
                 onClick={() => disconnect()}
               >
@@ -192,6 +208,7 @@ function SiteHeaderBar({
               </button>
             ) : (
               <button
+                data-tour="connect"
                 className={clsx(
                   "btn btn-sm",
                   light || dark
@@ -243,7 +260,19 @@ function SiteHeaderBar({
                 Launch App
               </Link>
             ) : null}
-            <div className="grid grid-cols-2 gap-1">
+            <div className="grid grid-cols-2 gap-1" data-tour="desks">
+              {onDesk ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    tour.start();
+                  }}
+                  className="col-span-2 rounded-2xl bg-black px-3 py-3 text-sm font-medium text-white"
+                >
+                  Guide
+                </button>
+              ) : null}
               {DESK_NAV.map((item) => {
                 const on = activeTab === item.id;
                 return (

@@ -44,7 +44,7 @@ function MobileBottomNavInner() {
   const moreActive = MORE.some((item) => item.tab === tab);
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-black/8 bg-white/95 px-2 pt-1.5 backdrop-blur lg:hidden pb-[max(0.4rem,env(safe-area-inset-bottom))]">
+    <nav data-tour="desks" className="fixed inset-x-0 bottom-0 z-40 border-t border-black/8 bg-white/95 px-2 pt-1.5 backdrop-blur lg:hidden pb-[max(0.4rem,env(safe-area-inset-bottom))]">
       {moreOpen ? (
         <div className="mb-1 grid grid-cols-2 gap-1 rounded-2xl bg-[var(--bg-muted)] p-1.5">
           {MORE.map((item) => (

@@ -232,7 +232,7 @@ export function ExploreMarkets({
     : "Market Open (Pre-Market)";
 
   return (
-    <div className="space-y-3">
+    <div data-tour="markets" className="space-y-3">
       {/* Portfolio strip */}
       <section className="rounded-[18px] border border-black/[0.08] bg-white px-5 py-3.5">
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">

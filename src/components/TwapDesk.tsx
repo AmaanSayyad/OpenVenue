@@ -87,7 +87,7 @@ export function TwapDesk({
   }
 
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-2">
+    <div data-tour="orders" className="grid items-start gap-6 lg:grid-cols-2">
       <section className="rounded-[28px] bg-white p-5 shadow-[var(--shadow-card)] ring-1 ring-black/[0.04] sm:p-7">
         <h3 className="display text-2xl">Place an order</h3>
         <p className="mt-1 text-sm text-[var(--ink-soft)]">

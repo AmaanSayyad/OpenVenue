@@ -2478,7 +2478,7 @@ function armedSpreadLimit(session: string | undefined, maxSpreadBps: number) {
                     null
                   }
                 />
-                <div className="mt-2 grid items-start gap-x-10 gap-y-6 lg:grid-cols-[minmax(0,1fr)_400px] xl:grid-cols-[minmax(0,1fr)_440px]">
+                <div data-tour="ticket" className="mt-2 grid items-start gap-x-10 gap-y-6 lg:grid-cols-[minmax(0,1fr)_400px] xl:grid-cols-[minmax(0,1fr)_440px]">
                   <div className="min-w-0 space-y-5">
                 <div className="flex items-center justify-between gap-4">
                   <div className="relative min-w-0 flex-1" ref={assetPickerRef}>
@@ -2975,6 +2975,7 @@ function armedSpreadLimit(session: string | undefined, maxSpreadBps: number) {
             {tab === "park" && (
               <motion.div
                 key="park"
+                data-tour="park"
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="mt-8"
@@ -3201,6 +3202,7 @@ function armedSpreadLimit(session: string | undefined, maxSpreadBps: number) {
             {tab === "agent" && (
               <motion.div
                 key="agent"
+                data-tour="agent"
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="mt-8"

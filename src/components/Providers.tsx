@@ -5,6 +5,7 @@ import { useState, type ReactNode } from "react";
 import { cookieToInitialState, WagmiProvider, type Config } from "wagmi";
 import { wagmiAdapter } from "@/config";
 import "@/config/appkit";
+import { TourProvider } from "@/components/ProductTour";
 
 export function Providers({
   children,
@@ -24,7 +25,9 @@ export function Providers({
       config={wagmiAdapter.wagmiConfig as Config}
       initialState={initialState}
     >
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <TourProvider>{children}</TourProvider>
+      </QueryClientProvider>
     </WagmiProvider>
   );
 }

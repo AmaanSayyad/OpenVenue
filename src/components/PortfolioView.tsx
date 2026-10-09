@@ -690,7 +690,7 @@ export function PortfolioView({
 
   if (!address) {
     return (
-      <div className="mt-8 space-y-6">
+      <div data-tour="portfolio" className="mt-8 space-y-6">
         <div className="rounded-[28px] bg-white p-8 text-center ring-1 ring-black/[0.05]">
           <p className="display text-2xl">Connect to view holdings</p>
           <p className="mt-2 text-sm text-[var(--ink-soft)]">
@@ -712,7 +712,7 @@ export function PortfolioView({
   }
 
   return (
-    <div className="mt-8 space-y-6">
+    <div data-tour="portfolio" className="mt-8 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
           <span className="relative h-8 w-8 overflow-hidden rounded-full bg-[var(--bg-muted)]">
