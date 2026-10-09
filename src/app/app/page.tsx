@@ -12,7 +12,7 @@ import {
   useWaitForTransactionReceipt,
 } from "wagmi";
 import "@/config/appkit";
-import { type Hex, type Address, encodeFunctionData, erc20Abi, parseUnits } from "viem";
+import { type Hex, type Address, decodeFunctionData, encodeFunctionData, erc20Abi, parseUnits } from "viem";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Sparkline } from "@/components/Sparkline";
@@ -156,6 +156,8 @@ function AppPageInner() {
   const [txKind, setTxKind] = useState<"trade" | "park" | "unpark">("trade");
   const [txSummary, setTxSummary] = useState<string | null>(null);
   const [unparkPending, setUnparkPending] = useState(false);
+  const [parkBusy, setParkBusy] = useState(false);
+  const parkLock = useRef(false);
   const [autopilot, setAutopilot] = useState<string[]>([]);
   const [meta, setMeta] = useState<Record<string, unknown> | null>(null);
   const [portfolio, setPortfolio] = useState<Record<string, unknown> | null>(null);
@@ -1220,11 +1222,47 @@ function AppPageInner() {
     },
   ] as const;
 
-  async function broadcastCalls(calls: ParkCall[]) {
+  async function approvalAlreadyCovers(call: ParkCall, amountWei: bigint) {
+    if (!publicClient || !address || !call.to || !call.data) return false;
+    if ((call.callDataType || "").toUpperCase() !== "APPROVE") return false;
+    try {
+      const decoded = decodeFunctionData({
+        abi: erc20Abi,
+        data: call.data as Hex,
+      });
+      if (decoded.functionName !== "approve") return false;
+      const current = await publicClient.readContract({
+        address: call.to as Address,
+        abi: erc20Abi,
+        functionName: "allowance",
+        args: [address, decoded.args[0]],
+      });
+      return current >= amountWei;
+    } catch {
+      return false;
+    }
+  }
+
+  async function broadcastCalls(calls: ParkCall[], amountWei?: bigint) {
     if (!publicClient) throw new Error("Wallet is not ready");
-    const hashes: Hex[] = [];
+    const planned: ParkCall[] = [];
     for (const call of calls) {
       if (!call.to || !call.data) continue;
+      if (amountWei != null && (await approvalAlreadyCovers(call, amountWei))) continue;
+      planned.push(call);
+    }
+    const hashes: Hex[] = [];
+    for (let i = 0; i < planned.length; i++) {
+      const call = planned[i];
+      const kind = (call.callDataType || "").toUpperCase();
+      const step = `${i + 1} of ${planned.length}`;
+      setStatus(
+        kind === "APPROVE"
+          ? `Confirm the USDT approval in MetaMask (${step}). The deposit is the next prompt.`
+          : planned.length > 1
+            ? `Confirm the deposit in MetaMask (${step}).`
+            : "Confirm the deposit in MetaMask.",
+      );
       const value =
         call.value && call.value !== "0x0" && call.value !== "0"
           ? BigInt(call.value)
@@ -1242,18 +1280,29 @@ function AppPageInner() {
   }
 
   async function depositPool(investmentId: string, amountLabel: string) {
-    const res = await fetch("/api/venue/park", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        address,
-        investmentId,
-        amount: amountLabel,
-        action: "deposit",
-      }),
-    }).then((r) => r.json());
-    if (!res.ok) throw new Error(res.error || "Park failed");
-    return broadcastCalls((res.data?.dataList || []) as ParkCall[]);
+    if (parkLock.current) return null;
+    parkLock.current = true;
+    setParkBusy(true);
+    try {
+      const res = await fetch("/api/venue/park", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          address,
+          investmentId,
+          amount: amountLabel,
+          action: "deposit",
+        }),
+      }).then((r) => r.json());
+      if (!res.ok) throw new Error(res.error || "Park failed");
+      return await broadcastCalls(
+        (res.data?.dataList || []) as ParkCall[],
+        usdtAmountToWei(amountLabel),
+      );
+    } finally {
+      parkLock.current = false;
+      setParkBusy(false);
+    }
   }
 
   function vaultFromDepositCalldata(data: string): Address | null {
@@ -1482,6 +1531,7 @@ function AppPageInner() {
     setStatus(`Parking ${parkAmtLabel} USDT into ${best.protocolName} (${best.apyDisplay})…`);
     try {
       const hashes = await depositPool(best.investmentId, parkAmtLabel);
+      if (!hashes) return;
       const txHash = hashes[hashes.length - 1];
       setTxKind("park");
       setUnparkPending(false);
@@ -2712,17 +2762,17 @@ function armedSpreadLimit(session: string | undefined, maxSpreadBps: number) {
                     </h3>
                     <p className="mt-2 text-sm text-[var(--ink-soft)]">
                       When stock venues are quiet, earn on BNB Chain. The
-                      highest rate is first. Park builds a simulated deposit
-                      until you sign.
+                      highest rate is first. One click asks MetaMask for the
+                      approval, then the deposit.
                     </p>
                   </div>
                   <button
                     type="button"
                     className="btn btn-primary"
-                    disabled={!address || !(Number(parkAmount) > 0)}
+                    disabled={!address || !(Number(parkAmount) > 0) || parkBusy}
                     onClick={() => parkBestApy(Number(parkAmount))}
                   >
-                    Park the highest rate
+                    {parkBusy ? "Confirm in wallet" : "Park the highest rate"}
                   </button>
                 </div>
                 <div className="mt-5 max-w-sm">
@@ -2833,11 +2883,12 @@ function armedSpreadLimit(session: string | undefined, maxSpreadBps: number) {
                             className="btn btn-primary flex-1"
                             disabled={
                               !address ||
+                              parkBusy ||
                               !(Number(parkAmount) > 0) ||
                               pool.toUpperCase() !== "USDT"
                             }
                             onClick={async () => {
-                              if (!address || !(Number(parkAmount) > 0)) return;
+                              if (!address || parkBusy || !(Number(parkAmount) > 0)) return;
                               const cashN = Number(
                                 (portfolio as { cash?: { usdt?: string } } | null)?.cash
                                   ?.usdt || 0,
@@ -2852,6 +2903,7 @@ function armedSpreadLimit(session: string | undefined, maxSpreadBps: number) {
                               setStatus(`Parking ${parkAmount} USDT into ${p.protocolName}…`);
                               try {
                                 const hashes = await depositPool(p.investmentId, parkAmount);
+                                if (!hashes) return;
                                 const txHash = hashes[hashes.length - 1];
                                 setTxKind("park");
       setUnparkPending(false);
@@ -2888,11 +2940,11 @@ function armedSpreadLimit(session: string | undefined, maxSpreadBps: number) {
                               }
                             }}
                           >
-                            Park
+                            {parkBusy ? "Confirm in wallet" : "Park"}
                           </button>
                           <button
                             className="btn btn-ghost flex-1"
-                            disabled={!address || pool.toUpperCase() !== "USDT"}
+                            disabled={!address || parkBusy || pool.toUpperCase() !== "USDT"}
                             onClick={async () => {
                               if (!address) return;
                               setError(null);
