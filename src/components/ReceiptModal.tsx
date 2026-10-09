@@ -81,27 +81,42 @@ export function ReceiptModal({
 
   const failed = receipt.status === "failed";
   const confirmed = receipt.status === "confirmed";
+  const parked = receipt.side === "park";
+  const apy =
+    receipt.notes?.find((n) => /^apy\b/i.test(n))?.replace(/^APY\s*/i, "") ||
+    null;
   const sim =
     receipt.failReason?.toLowerCase().includes("simulation gate")
       ? "Blocked"
       : receipt.simOk == null
-        ? "—"
+        ? null
         : receipt.simOk
           ? "Passed"
           : "Failed";
 
-  const rows: Array<[string, ReactNode]> = [
-    [
-      "Wrapper",
-      receipt.wrapperKind
-        ? kindLabel(receipt.wrapperKind as WrapperKind)
-        : "—",
-    ],
-    ["Mode", receipt.mode || "—"],
-    ["Vendor", receipt.vendor ? <VendorName name={receipt.vendor} /> : "—"],
-    ["Session", sessionLabel(receipt.sessionState)],
-    ["Simulation", sim],
-  ];
+  const rows: Array<[string, ReactNode] | null> = parked
+    ? [
+        ["Pool", receipt.ticker || "USDT"],
+        ["Protocol", receipt.vendor ? <VendorName name={receipt.vendor} /> : null],
+        ["Rate", apy],
+        ["Network", "BNB Chain"],
+        ["Session", receipt.sessionState ? sessionLabel(receipt.sessionState) : null],
+      ]
+    : [
+        [
+          "Wrapper",
+          receipt.wrapperKind
+            ? kindLabel(receipt.wrapperKind as WrapperKind)
+            : null,
+        ],
+        ["Mode", receipt.mode || null],
+        ["Vendor", receipt.vendor ? <VendorName name={receipt.vendor} /> : null],
+        ["Session", receipt.sessionState ? sessionLabel(receipt.sessionState) : null],
+        ["Simulation", sim],
+      ];
+  const filledRows = rows.filter(
+    (row): row is [string, ReactNode] => row != null && row[1] != null && row[1] !== "",
+  );
 
   return (
     <div
@@ -139,7 +154,7 @@ export function ReceiptModal({
           {headline(receipt)}
         </h3>
         <p className="mt-2 text-sm text-[var(--ink-soft)]">
-          {receipt.side === "sell" ? "Sell" : receipt.side === "buy" ? "Buy" : receipt.side}{" "}
+          {parked ? "Earn" : receipt.side === "sell" ? "Sell" : receipt.side === "buy" ? "Buy" : "Approve"}{" "}
           · {receipt.ticker}
         </p>
 
@@ -155,16 +170,16 @@ export function ReceiptModal({
           <div className="pb-1 text-[var(--ink-soft)]">→</div>
           <div className="text-right">
             <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--ink-soft)]">
-              Est. out
+              {parked ? "Rate" : "Est. out"}
             </div>
             <div className="mt-1 text-[20px] font-semibold tabular-nums">
-              {receipt.outAmountHuman || "—"}
+              {parked ? apy || "Vault shares" : receipt.outAmountHuman || "—"}
             </div>
           </div>
         </div>
 
         <dl className="mt-4">
-          {rows.map(([label, value]) => (
+          {filledRows.map(([label, value]) => (
             <div
               key={label}
               className="flex items-center justify-between gap-4 border-b border-black/[0.05] py-2.5 text-[14px]"
@@ -204,11 +219,13 @@ export function ReceiptModal({
           </a>
         )}
 
-        {(receipt.notes || []).length > 0 && (
+        {(receipt.notes || []).filter((n) => !parked || !/^apy\b/i.test(n)).length > 0 && (
           <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-[var(--ink-soft)]">
-            {receipt.notes!.map((n) => (
-              <li key={n}>{n}</li>
-            ))}
+            {receipt.notes!
+              .filter((n) => !parked || !/^apy\b/i.test(n))
+              .map((n) => (
+                <li key={n}>{n}</li>
+              ))}
           </ul>
         )}
 

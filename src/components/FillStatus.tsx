@@ -8,29 +8,57 @@ export function FillStatus({
   confirming,
   confirmed,
   failed,
+  kind = "trade",
+  summary,
+  claimLater,
   className,
 }: {
   txHash?: Hex;
   confirming?: boolean;
   confirmed?: boolean;
   failed?: boolean;
+  kind?: "trade" | "park" | "unpark";
+  summary?: string | null;
+  claimLater?: boolean;
   className?: string;
 }) {
   if (!txHash) return null;
 
   const short = `${txHash.slice(0, 6)}…${txHash.slice(-4)}`;
   const title = failed
-    ? "Trade failed"
+    ? kind === "park"
+      ? "Park did not land"
+      : kind === "unpark"
+        ? "Unpark did not land"
+        : "Trade failed"
     : confirmed
-      ? "Filled"
+      ? kind === "park"
+        ? "Parked"
+        : kind === "unpark"
+          ? claimLater
+            ? "Withdrawal requested"
+            : "Unparked"
+          : "Filled"
       : confirming
         ? "Waiting for BSC"
         : "Sent to the network";
   const body = failed
-    ? "BSC did not include this transaction. Resolve again and sign before the quote expires."
+    ? kind === "trade"
+      ? "BSC did not include this transaction. Resolve again and sign before the quote expires."
+      : "BSC did not include this transaction."
     : confirmed
-      ? "The trade is on chain. This position is updated."
-      : "Inclusion usually takes a few seconds.";
+      ? kind === "park"
+        ? summary
+          ? `${summary.replace(" · ", " is earning in ")}.`
+          : "USDT is earning on BNB Chain."
+        : kind === "unpark"
+          ? claimLater
+            ? `${summary || "This pool"} settles the USDT before it returns. Unpark again to claim it.`
+            : summary
+              ? `USDT from ${summary} is back in this wallet.`
+              : "USDT is back in this wallet."
+          : "The trade is on BSC."
+      : "This usually lands in a few seconds.";
 
   return (
     <div

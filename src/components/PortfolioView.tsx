@@ -78,7 +78,6 @@ function ActivityList({
   activity,
   receipts,
   onOpenReceipt,
-  onShareReceipt,
   onTradeTicker,
 }: {
   activity: Array<
@@ -89,10 +88,8 @@ function ActivityList({
   >;
   receipts: TradeReceipt[];
   onOpenReceipt?: (r: TradeReceipt) => void;
-  onShareReceipt?: (r: TradeReceipt) => void | Promise<{ ok?: boolean } | void>;
   onTradeTicker: (ticker: string) => void;
 }) {
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   return (
     <section className="rounded-[28px] bg-white p-5 shadow-[var(--shadow-card)] ring-1 ring-black/[0.04] sm:p-7">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -182,22 +179,6 @@ function ActivityList({
                     </span>
                   </span>
                 </button>
-                {receipt && (
-                  <button
-                    type="button"
-                    className="shrink-0 rounded-full px-3 py-1.5 text-xs font-medium text-[var(--ink-soft)] ring-1 ring-black/10 hover:bg-[var(--bg-muted)] hover:text-[var(--ink)]"
-                    onClick={async () => {
-                      const res = await onShareReceipt?.(receipt);
-                      if (res && res.ok === false) return;
-                      setCopiedId(receipt.id);
-                      window.setTimeout(() => {
-                        setCopiedId((cur) => (cur === receipt.id ? null : cur));
-                      }, 1600);
-                    }}
-                  >
-                    {copiedId === receipt.id ? "Copied" : "Share"}
-                  </button>
-                )}
               </li>
             );
           })}
@@ -387,7 +368,6 @@ export function PortfolioView({
   history,
   receipts = [],
   onOpenReceipt,
-  onShareReceipt,
   costBasis = [],
   loading,
   onRefresh,
@@ -401,7 +381,6 @@ export function PortfolioView({
   history: HistoryItem[];
   receipts?: TradeReceipt[];
   onOpenReceipt?: (r: TradeReceipt) => void;
-  onShareReceipt?: (r: TradeReceipt) => void | Promise<{ ok?: boolean } | void>;
   costBasis?: CostBasisLot[];
   loading?: boolean;
   onRefresh: () => void;
@@ -593,7 +572,6 @@ export function PortfolioView({
           activity={activity}
           receipts={receipts}
           onOpenReceipt={onOpenReceipt}
-          onShareReceipt={onShareReceipt}
           onTradeTicker={onTradeTicker}
         />
       </div>
@@ -978,7 +956,6 @@ export function PortfolioView({
         activity={activity}
         receipts={receipts}
         onOpenReceipt={onOpenReceipt}
-        onShareReceipt={onShareReceipt}
         onTradeTicker={onTradeTicker}
       />
 

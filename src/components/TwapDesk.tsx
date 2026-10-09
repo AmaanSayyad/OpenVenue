@@ -18,14 +18,17 @@ const SPREADS = ["5", "15", "30"] as const;
 
 export function TwapDesk({
   defaultTicker,
+  busy,
   onActivateLimit,
 }: {
   defaultTicker?: string;
+  busy?: boolean;
   onActivateLimit?: (opts: {
+    id: string;
     ticker: string;
     amountUsdt: number;
     maxSpreadBps: number;
-  }) => void;
+  }) => void | Promise<void>;
 }) {
   const [orders, setOrders] = useState<DeskOrder[]>([]);
   const [kind, setKind] = useState<DeskOrderKind>("limit");
@@ -52,9 +55,11 @@ export function TwapDesk({
   const sliceUsd = amountOk ? amountUsdt / sliceN : 0;
   const everyMin = Math.max(1, Math.round((hourN * 60) / sliceN));
 
-  function create() {
-    if (!amountOk) return;
+  async function create() {
+    if (!amountOk || busy) return;
+    const id = crypto.randomUUID();
     const next = pushDeskOrder({
+      id,
       kind,
       ticker,
       side: "buy",
@@ -69,11 +74,13 @@ export function TwapDesk({
     });
     setOrders(next);
     if (kind === "limit" && onActivateLimit) {
-      onActivateLimit({
+      await onActivateLimit({
+        id,
         ticker,
         amountUsdt,
         maxSpreadBps: bps,
       });
+      setOrders(loadDeskOrders());
     }
   }
 
@@ -215,7 +222,7 @@ export function TwapDesk({
                 {amountOk ? `$${amountUsdt}` : "—"} of {meta.name}
               </span>{" "}
               when the spread is {bps} bps ({(bps / 100).toFixed(2)}%) or
-              tighter, then open the trade ticket.
+              tighter. It signs on this page when the quote is inside that band.
             </p>
           ) : (
             <p>
@@ -231,10 +238,14 @@ export function TwapDesk({
         <button
           type="button"
           className="btn btn-primary mt-4 w-full"
-          disabled={!amountOk}
-          onClick={create}
+          disabled={!amountOk || busy}
+          onClick={() => void create()}
         >
-          {kind === "limit" ? "Arm limit and open ticket" : "Save TWAP plan"}
+          {busy
+            ? "Checking the quote…"
+            : kind === "limit"
+              ? "Arm limit"
+              : "Save TWAP plan"}
         </button>
       </section>
 

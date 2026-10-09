@@ -130,31 +130,41 @@ export function ExploreMarkets({
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      const next: QuoteRow[] = [];
-      for (const ticker of CORE_TICKERS) {
-        const fallback = emptyQuote(ticker);
-        try {
-          const d = await loadChart(ticker, "1D");
-          if (!d.ok || d.last == null) {
-            next.push(fallback);
-            continue;
-          }
+    const acc = CORE_TICKERS.map(emptyQuote);
+    let cursor = 0;
+
+    async function loadOne(ticker: string, index: number) {
+      const fallback = emptyQuote(ticker);
+      try {
+        const d = await loadChart(ticker, "1D");
+        if (!d.ok || d.last == null) {
+          acc[index] = fallback;
+        } else {
           const volume = (d.candles || []).reduce((sum, c) => sum + (c.v || 0), 0);
-          next.push({
+          acc[index] = {
             ...fallback,
             last: Number(d.last),
             change: Number(d.change ?? 0),
             changePct: Number(d.changePct ?? 0),
             volume,
             markets: 1,
-          });
-        } catch {
-          next.push(fallback);
+          };
         }
+      } catch {
+        acc[index] = fallback;
       }
-      if (!cancelled) setRows(next);
-    })();
+      if (!cancelled) setRows(acc.map((row) => ({ ...row })));
+    }
+
+    async function worker() {
+      while (cursor < CORE_TICKERS.length) {
+        const index = cursor;
+        cursor += 1;
+        await loadOne(CORE_TICKERS[index], index);
+      }
+    }
+
+    void Promise.all([worker(), worker(), worker(), worker()]);
     return () => {
       cancelled = true;
     };

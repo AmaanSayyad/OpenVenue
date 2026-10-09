@@ -12,7 +12,7 @@ import {
   useWaitForTransactionReceipt,
 } from "wagmi";
 import "@/config/appkit";
-import { type Hex, type Address, encodeFunctionData, parseUnits } from "viem";
+import { type Hex, type Address, encodeFunctionData, erc20Abi, parseUnits } from "viem";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Sparkline } from "@/components/Sparkline";
@@ -34,8 +34,8 @@ import { VendorName } from "@/components/VendorMark";
 import { FillStatus } from "@/components/FillStatus";
 import { QuoteExpiry, quoteExpired, QUOTE_TTL_MS } from "@/components/QuoteExpiry";
 import { TwapDesk } from "@/components/TwapDesk";
+import { loadDeskOrders, updateDeskOrder } from "@/lib/venue/twap";
 import { SavedStrategies } from "@/components/SavedStrategies";
-import { copyShareReceipt } from "@/lib/venue/shareReceipt";
 import type { DeskStrategy } from "@/lib/venue/strategies";
 import Image from "next/image";
 import type { VenueDecision } from "@/lib/venue/types";
@@ -153,6 +153,9 @@ function AppPageInner() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<Hex | undefined>();
+  const [txKind, setTxKind] = useState<"trade" | "park" | "unpark">("trade");
+  const [txSummary, setTxSummary] = useState<string | null>(null);
+  const [unparkPending, setUnparkPending] = useState(false);
   const [autopilot, setAutopilot] = useState<string[]>([]);
   const [meta, setMeta] = useState<Record<string, unknown> | null>(null);
   const [portfolio, setPortfolio] = useState<Record<string, unknown> | null>(null);
@@ -179,7 +182,7 @@ function AppPageInner() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [pollEnabled, setPollEnabled] = useState(true);
   const [quoteAge, setQuoteAge] = useState<number | null>(null);
-  const [nowTick, setNowTick] = useState(() => Date.now());
+  const [quoteIsStale, setQuoteIsStale] = useState(false);
   const [pendingLot, setPendingLot] = useState<{
     ticker: string;
     symbol: string;
@@ -199,6 +202,15 @@ function AppPageInner() {
   const [assetPickerOpen, setAssetPickerOpen] = useState(false);
   const assetPickerRef = useRef<HTMLDivElement>(null);
   const pollBusy = useRef(false);
+  const limitBusy = useRef(false);
+  const armLimitRef = useRef<
+    (opts: {
+      id: string;
+      ticker: string;
+      amountUsdt: number;
+      maxSpreadBps: number;
+    }) => Promise<void>
+  >(async () => {});
   const deepTicker = useRef<string | null>(null);
   const [sellPosition, setSellPosition] = useState<{
     symbol: string;
@@ -312,9 +324,8 @@ function AppPageInner() {
 
 
   useEffect(() => {
-    const id = setInterval(() => setNowTick(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
+    setQuoteIsStale(quoteAge == null);
+  }, [quoteAge]);
 
   useEffect(() => {
     setChartQuote(null);
@@ -618,6 +629,64 @@ function AppPageInner() {
   }, [address]);
 
   useEffect(() => {
+    if (side !== "sell" || !address) return;
+    let cancel = false;
+    (async () => {
+      let book = portfolio as {
+        positions?: Array<{
+          symbol: string;
+          ticker: string;
+          contractAddress: string;
+          balance: string;
+          balanceWei: string;
+        }>;
+      } | null;
+      if (!book?.positions) {
+        try {
+          const res = await fetch(`/api/venue/portfolio?wallet=${address}`).then(
+            (r) => r.json(),
+          );
+          if (cancel || !res.ok) return;
+          book = res.portfolio;
+          setPortfolio(res.portfolio);
+        } catch {
+          return;
+        }
+      }
+      if (cancel) return;
+      const matches = (book?.positions || []).filter(
+        (p) => p.ticker.toUpperCase() === ticker.toUpperCase() && Number(p.balance) > 0,
+      );
+      setSellPosition((prev) => {
+        const keep = matches.find((p) => p.contractAddress === prev?.contractAddress);
+        const pick = keep || matches[0];
+        if (!pick) return null;
+        if (
+          prev?.contractAddress === pick.contractAddress &&
+          prev.balanceWei === pick.balanceWei
+        ) {
+          return prev;
+        }
+        return {
+          symbol: pick.symbol,
+          ticker: pick.ticker,
+          contractAddress: pick.contractAddress,
+          balanceWei: pick.balanceWei,
+          balance: pick.balance,
+        };
+      });
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [side, address, ticker, portfolio]);
+
+  useEffect(() => {
+    if (side !== "sell" || !sellPosition) return;
+    void resolve();
+  }, [side, sellPosition, resolve]);
+
+  useEffect(() => {
     if ((tab === "portfolio" || tab === "explore" || tab === "park") && address)
       loadPortfolio();
     if (tab === "park") {
@@ -708,31 +777,33 @@ function AppPageInner() {
     const tradeTicker = opts?.tickerName ?? ticker;
     if (!pick || !address) {
       setError("Connect a wallet and resolve a live route first.");
-      return;
+      return false;
     }
     if (!opts?.skipStaleCheck && quoteExpired(quoteAge, Date.now())) {
       setError("Quote expired - refresh the route before execute.");
-      return;
+      return false;
     }
+    const tradeSide: "buy" | "sell" =
+      opts.pick && opts.amountUsdt != null ? "buy" : side;
     const fromToken =
-      side === "sell" && !opts?.pick
+      tradeSide === "sell" && !opts?.pick
         ? pick.candidate.contractAddress
         : "0x55d398326f99059fF775485246999027B3197955";
     const toToken =
-      side === "sell" && !opts?.pick
+      tradeSide === "sell" && !opts?.pick
         ? "0x55d398326f99059fF775485246999027B3197955"
         : pick.candidate.contractAddress;
     const amt =
       opts?.amountUsdt != null
         ? usdtAmountToWei(opts.amountUsdt).toString()
-        : side === "sell"
+        : tradeSide === "sell"
           ? sellPosition?.balanceWei || pick.route.fromTokenAmount
           : amountWei;
     if (!amt) {
       setError("Invalid amount");
-      return;
+      return false;
     }
-    if (publicClient && (side === "buy" || opts?.pick)) {
+    if (publicClient && (tradeSide === "buy" || opts?.pick)) {
       const usdtBal = await publicClient.readContract({
         address: fromToken as Address,
         abi: [
@@ -750,7 +821,7 @@ function AppPageInner() {
       if (usdtBal < BigInt(amt)) {
         const held = (Number(usdtBal) / 1e18).toFixed(2);
         setError(`This wallet has ${held} USDT. Lower the amount and try again.`);
-        return;
+        return false;
       }
     }
 
@@ -760,9 +831,9 @@ function AppPageInner() {
     setStatus("Building payload + simulation gate…");
 
     const receiptBase = {
-      side: side as "buy" | "sell",
+      side: tradeSide,
       ticker:
-        side === "sell" && sellPosition && !opts?.pick
+        tradeSide === "sell" && sellPosition && !opts?.pick
           ? sellPosition.ticker
           : tradeTicker,
       symbol: pick.candidate.symbol,
@@ -770,10 +841,10 @@ function AppPageInner() {
       vendor: pick.route.vendorName,
       mode: pick.route.executionMode,
       amountLabel:
-        side === "sell" && !opts?.pick
+        tradeSide === "sell" && !opts?.pick
           ? sellPosition?.balance || "?"
           : `${tradeAmount} USDT`,
-      amountUsdt: side === "buy" || opts?.pick ? Number(tradeAmount) : undefined,
+      amountUsdt: tradeSide === "buy" || opts?.pick ? Number(tradeAmount) : undefined,
       outAmountHuman: pick.outAmountHuman,
       quoteId: pick.route.quoteId,
       sessionState: opts?.sessionState ?? decision?.session,
@@ -785,10 +856,10 @@ function AppPageInner() {
       const refresh = new URLSearchParams({
         ticker: receiptBase.ticker,
         amount: tradeAmount.trim() || "1",
-        side,
+        side: tradeSide,
         wallet: address,
       });
-      if (side === "sell" && !opts?.pick) {
+      if (tradeSide === "sell" && !opts?.pick) {
         refresh.set("fromToken", fromToken);
         refresh.set("fromAmountWei", amt);
       }
@@ -872,7 +943,7 @@ function AppPageInner() {
           (submit.data as { orderId?: string })?.orderId || quoteId || "";
         setHistory(
           pushHistory({
-            side,
+            side: tradeSide,
             ticker: tradeTicker,
             symbol: pick.candidate.symbol,
             amountLabel: tradeAmount,
@@ -894,7 +965,7 @@ function AppPageInner() {
         setActiveReceipt(next[0]);
         setStatus(`RFQ submitted · ${orderId}`);
         setSheetOpen(false);
-        return;
+        return true;
       }
 
       const approveTx = json.approve as {
@@ -910,6 +981,8 @@ function AppPageInner() {
           data: approveTx.data as Hex,
           value: approveTx.value ? BigInt(approveTx.value) : undefined,
         });
+        setTxKind("trade");
+        setTxSummary(null);
         setTxHash(approveHash);
         setHistory(
           pushHistory({
@@ -938,10 +1011,10 @@ function AppPageInner() {
         const again = new URLSearchParams({
           ticker: receiptBase.ticker,
           amount: tradeAmount.trim() || "1",
-          side,
+          side: tradeSide,
           wallet: address,
         });
-        if (side === "sell" && !opts?.pick) {
+        if (tradeSide === "sell" && !opts?.pick) {
           again.set("fromToken", fromToken);
           again.set("fromAmountWei", amt);
         }
@@ -1000,17 +1073,19 @@ function AppPageInner() {
         data: tx.data as Hex,
         value: tx.value ? BigInt(tx.value) : undefined,
       });
+      setTxKind("trade");
+      setTxSummary(`${tradeAmount} USDT`);
       setTxHash(hash);
       setHistory(
         pushHistory({
-          side,
+          side: tradeSide,
           ticker:
-            side === "sell" && sellPosition && !opts?.pick
+            tradeSide === "sell" && sellPosition && !opts?.pick
               ? sellPosition.ticker
               : tradeTicker,
           symbol: pick.candidate.symbol,
           amountLabel:
-            side === "sell" && !opts?.pick
+            tradeSide === "sell" && !opts?.pick
               ? sellPosition?.balance || "?"
               : `${tradeAmount} USDT`,
           txHash: hash,
@@ -1028,7 +1103,7 @@ function AppPageInner() {
       setReceipts(next);
       setActiveReceipt(next[0]);
 
-      if (side === "buy") {
+      if (tradeSide === "buy") {
         const qty = Number(pick.outAmountHuman || 0);
         if (qty > 0 && Number(tradeAmount) > 0) {
           setPendingLot({
@@ -1040,7 +1115,7 @@ function AppPageInner() {
             costUsdt: Number(tradeAmount),
           });
         }
-      } else if (side === "sell" && sellPosition) {
+      } else if (tradeSide === "sell" && sellPosition) {
         setPendingLot({
           side: "sell",
           ticker: sellPosition.ticker,
@@ -1053,6 +1128,7 @@ function AppPageInner() {
 
       setStatus(null);
       setSheetOpen(false);
+      return true;
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Execution failed";
       setError(msg);
@@ -1064,6 +1140,7 @@ function AppPageInner() {
       });
       setReceipts(next);
       setActiveReceipt(next[0]);
+      return false;
     } finally {
       setBuilding(false);
     }
@@ -1181,7 +1258,41 @@ function AppPageInner() {
     return broadcastCalls((res.data?.dataList || []) as ParkCall[]);
   }
 
-  async function redeemPool(investmentId: string) {
+  function vaultFromDepositCalldata(data: string): Address | null {
+    if (!data.startsWith("0xa46ea103") || data.length < 2 + 8 + 64 * 4) return null;
+    const word = data.slice(2 + 8 + 64 * 3, 2 + 8 + 64 * 4);
+    const vault = `0x${word.slice(24)}`;
+    if (!/^0x[0-9a-f]{40}$/i.test(vault)) return null;
+    if (/^0x0{40}$/i.test(vault)) return null;
+    return vault as Address;
+  }
+
+  async function discoverVault(investmentId: string): Promise<Address | null> {
+    for (const amount of ["0.01", "0.1", "1"]) {
+      const preview = await fetch("/api/venue/park", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          address,
+          investmentId,
+          amount,
+          action: "deposit",
+        }),
+      }).then((r) => r.json());
+      const call = ((preview.data?.dataList || []) as ParkCall[]).find(
+        (row) => row.callDataType === "DEPOSIT" && row.data,
+      );
+      if (!call?.data) continue;
+      const decoded = vaultFromDepositCalldata(call.data);
+      if (decoded) return decoded;
+      if (call.to) return call.to as Address;
+    }
+    return null;
+  }
+
+  async function redeemPool(
+    investmentId: string,
+  ): Promise<{ hashes: Hex[]; settled: boolean }> {
     const res = await fetch("/api/venue/park", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1193,44 +1304,104 @@ function AppPageInner() {
       }),
     }).then((r) => r.json());
     if (res.ok && res.data?.dataList?.length) {
-      return broadcastCalls(res.data.dataList as ParkCall[]);
+      const hashes = await broadcastCalls(res.data.dataList as ParkCall[]);
+      return { hashes, settled: true };
     }
-    const preview = await fetch("/api/venue/park", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        address,
-        investmentId,
-        amount: "1",
-        action: "deposit",
-      }),
-    }).then((r) => r.json());
-    const vault = ((preview.data?.dataList || []) as ParkCall[]).find(
-      (call) => call.callDataType === "DEPOSIT",
-    )?.to;
-    if (!vault || !publicClient || !address) {
-      throw new Error("Nothing is parked in this pool.");
+    if (!publicClient || !address) {
+      throw new Error("Connect a wallet to unpark.");
     }
-    let shares = 0n;
+    const vault = await discoverVault(investmentId);
+    if (!vault) throw new Error("Nothing is parked in this pool.");
+
+    let share: Address = vault;
     try {
-      shares = await publicClient.readContract({
-        address: vault as Address,
+      const found = await publicClient.readContract({
+        address: vault,
+        abi: [
+          {
+            name: "share",
+            type: "function",
+            stateMutability: "view",
+            inputs: [],
+            outputs: [{ name: "token", type: "address" }],
+          },
+        ] as const,
+        functionName: "share",
+      });
+      if (found && found !== "0x0000000000000000000000000000000000000000") {
+        share = found;
+      }
+    } catch {
+      share = vault;
+    }
+
+    const held = await publicClient.readContract({
+      address: share,
+      abi: erc20Abi,
+      functionName: "balanceOf",
+      args: [address],
+    });
+    let claimable = 0n;
+    try {
+      claimable = await publicClient.readContract({
+        address: vault,
         abi: vaultAbi,
         functionName: "maxRedeem",
         args: [address],
       });
     } catch {
-      throw new Error("Nothing is parked in this pool.");
+      claimable = 0n;
     }
-    if (shares === 0n) throw new Error("Nothing is parked in this pool.");
-    const data = encodeFunctionData({
-      abi: vaultAbi,
-      functionName: "redeem",
-      args: [shares, address, address],
+    if (claimable > 0n) {
+      const data = encodeFunctionData({
+        abi: vaultAbi,
+        functionName: "redeem",
+        args: [claimable, address, address],
+      });
+      const hash = await sendTransactionAsync({ to: vault, data });
+      await publicClient.waitForTransactionReceipt({ hash });
+      return { hashes: [hash], settled: true };
+    }
+    if (held <= 1n) throw new Error("Nothing is parked in this pool.");
+
+    const hashes: Hex[] = [];
+    const allowance = await publicClient.readContract({
+      address: share,
+      abi: erc20Abi,
+      functionName: "allowance",
+      args: [address, vault],
     });
-    const hash = await sendTransactionAsync({ to: vault as Address, data });
+    if (allowance < held) {
+      const approveData = encodeFunctionData({
+        abi: erc20Abi,
+        functionName: "approve",
+        args: [vault, held],
+      });
+      const approveHash = await sendTransactionAsync({ to: share, data: approveData });
+      hashes.push(approveHash);
+      await publicClient.waitForTransactionReceipt({ hash: approveHash });
+    }
+    const requestData = encodeFunctionData({
+      abi: [
+        {
+          name: "requestRedeem",
+          type: "function",
+          stateMutability: "nonpayable",
+          inputs: [
+            { name: "shares", type: "uint256" },
+            { name: "controller", type: "address" },
+            { name: "owner", type: "address" },
+          ],
+          outputs: [{ name: "requestId", type: "uint256" }],
+        },
+      ] as const,
+      functionName: "requestRedeem",
+      args: [held, address, address],
+    });
+    const hash = await sendTransactionAsync({ to: vault, data: requestData });
+    hashes.push(hash);
     await publicClient.waitForTransactionReceipt({ hash });
-    return [hash];
+    return { hashes, settled: false };
   }
 
   async function parkBestApy(amountOverride?: number) {
@@ -1279,11 +1450,17 @@ function AppPageInner() {
       return;
     }
     const parkAmtLabel = String(parkAmt);
+    setError(null);
     setStatus(`Parking ${parkAmtLabel} USDT into ${best.protocolName} (${best.apyDisplay})…`);
     try {
       const hashes = await depositPool(best.investmentId, parkAmtLabel);
       const txHash = hashes[hashes.length - 1];
+      setTxKind("park");
+      setUnparkPending(false);
+      setTxSummary(`${parkAmtLabel} USDT · ${best.protocolName}`);
       setTxHash(txHash);
+      setError(null);
+      setStatus(null);
       setHistory(
         pushHistory({
           side: "park",
@@ -1299,13 +1476,16 @@ function AppPageInner() {
         ticker: "USDT",
         amountLabel: `${parkAmtLabel} USDT`,
         vendor: best.protocolName,
+        mode: "Earn",
+        sessionState: session?.state,
+        simOk: true,
         status: "submitted",
         txHash,
         notes: [`APY ${best.apyDisplay}`, "One-tap park"],
       });
       setReceipts(next);
       setActiveReceipt(next[0]);
-      setStatus(`Parked ${parkAmtLabel} USDT · ${best.protocolName}`);
+      setStatus(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Park failed");
       setStatus(null);
@@ -1390,7 +1570,141 @@ function AppPageInner() {
     }
   }
 
-  const quoteIsStale = quoteExpired(quoteAge, nowTick);
+  async function armLimit(
+    opts: {
+      id: string;
+      ticker: string;
+      amountUsdt: number;
+      maxSpreadBps: number;
+    },
+    quiet = false,
+  ) {
+    if (!address) {
+      if (!quiet) {
+        setError("Connect a wallet to arm this limit.");
+        open();
+      }
+      return;
+    }
+    if (limitBusy.current || building) return;
+    limitBusy.current = true;
+    setSide("buy");
+    setSellPosition(null);
+    if (!quiet) {
+      setError(null);
+      setStatus(`Checking ${opts.ticker}…`);
+      setLoading(true);
+    }
+    try {
+      const qs = new URLSearchParams({
+        ticker: opts.ticker,
+        amount: String(opts.amountUsdt),
+        side: "buy",
+        wallet: address,
+      });
+      const json = await fetch(`/api/venue/resolve?${qs}`).then((r) => r.json());
+      if (!json.ok) throw new Error(json.error || "Resolve failed");
+      const best = json.decision.bestQuote as VenueDecision["bestQuote"];
+      const spread = best?.candidate?.spreadBps;
+      const within =
+        typeof spread === "number" &&
+        spread <= opts.maxSpreadBps &&
+        Boolean(best?.route?.quoteId);
+      if (!within || !best) {
+        const wide =
+          typeof spread === "number"
+            ? `Spread is ${(spread / 100).toFixed(2)}%, wider than ${(opts.maxSpreadBps / 100).toFixed(2)}%.`
+            : "No live quote yet.";
+        if (quiet) {
+          setStatus(`${opts.ticker} stays armed. ${wide}`);
+        } else {
+          setStatus(null);
+          setError(
+            `${wide} The order stays on this page and signs when the quote tightens.`,
+          );
+        }
+        return;
+      }
+      if (publicClient) {
+        const usdtBal = await publicClient.readContract({
+          address: "0x55d398326f99059fF775485246999027B3197955",
+          abi: [
+            {
+              name: "balanceOf",
+              type: "function",
+              stateMutability: "view",
+              inputs: [{ name: "account", type: "address" }],
+              outputs: [{ name: "balance", type: "uint256" }],
+            },
+          ] as const,
+          functionName: "balanceOf",
+          args: [address],
+        });
+        if (usdtBal < usdtAmountToWei(opts.amountUsdt)) {
+          const held = (Number(usdtBal) / 1e18).toFixed(2);
+          const msg = `This wallet has ${held} USDT. Lower the amount and try again.`;
+          if (quiet) setStatus(msg);
+          else {
+            setError(msg);
+            setStatus(null);
+          }
+          return;
+        }
+      }
+      setDecision(json.decision);
+      setQuoteAge(Date.now());
+      if (best.route.quoteId) setSelectedQuoteId(best.route.quoteId);
+      setStatus(
+        `Signing ${best.candidate.symbol} · ${(spread / 100).toFixed(2)}% from the reference`,
+      );
+      const filled = await executeBest({
+        pick: best,
+        amountUsdt: opts.amountUsdt,
+        tickerName: opts.ticker,
+        sessionState: json.decision.session,
+        skipStaleCheck: true,
+      });
+      if (filled) {
+        updateDeskOrder(opts.id, { status: "filled" });
+        setStatus(`Limit filled · ${opts.ticker}`);
+      }
+    } catch (e) {
+      if (!quiet) {
+        setError(e instanceof Error ? e.message : "Limit failed");
+        setStatus(null);
+      }
+    } finally {
+      limitBusy.current = false;
+      if (!quiet) setLoading(false);
+    }
+  }
+
+  armLimitRef.current = armLimit;
+
+  useEffect(() => {
+    if (tab !== "orders" || !address) return;
+    const id = window.setInterval(() => {
+      const next = loadDeskOrders().find(
+        (o) =>
+          o.status === "active" &&
+          o.kind === "limit" &&
+          o.limitSpreadBps != null,
+      );
+      if (!next || next.limitSpreadBps == null) return;
+      void armLimitRef.current(
+        {
+          id: next.id,
+          ticker: next.ticker,
+          amountUsdt: next.amountUsdt,
+          maxSpreadBps: next.limitSpreadBps,
+        },
+        true,
+      );
+    }, 20_000);
+    return () => window.clearInterval(id);
+  }, [tab, address]);
+
+  const markQuoteStale = useCallback(() => setQuoteIsStale(true), []);
 
   const asset = tickerMeta(
     side === "sell" && sellPosition ? sellPosition.ticker : ticker,
@@ -1401,10 +1715,6 @@ function AppPageInner() {
     chartQuote?.last ??
     null;
   const watched = watch.some((w) => w.ticker === ticker);
-  const quoteAgeLabel =
-    quoteAge == null
-      ? null
-      : `${Math.max(0, Math.floor((nowTick - quoteAge) / 1000))}s ago`;
   const outNum = Number(selected?.outAmountHuman);
   const payNum = Number(amount);
   const impliedPx =
@@ -1531,10 +1841,20 @@ function AppPageInner() {
           ) : (
             <div className="mt-2 rounded-2xl bg-[var(--bg-muted)] p-4 text-sm text-[var(--ink-soft)]">
               <EmptyState
-                title="No position selected"
-                body="Open Portfolio and tap Sell on a holding to pre-fill this ticket."
-                actionLabel="Go to Portfolio"
+                title={address ? "No position selected" : "Wallet not connected"}
+                body={
+                  !address
+                    ? "Connect a wallet. If it holds this stock, the ticket fills itself."
+                    : portfolio
+                      ? `This wallet has no ${ticker} to sell.`
+                      : `Looking up ${ticker} in this wallet…`
+                }
+                actionLabel={address ? "Go to Portfolio" : "Connect wallet"}
                 onAction={() => {
+                  if (!address) {
+                    open();
+                    return;
+                  }
                   chooseTab("portfolio");
                   setSheetOpen(false);
                 }}
@@ -1642,7 +1962,7 @@ function AppPageInner() {
           <QuoteExpiry
             className="mt-2"
             quoteAge={quoteAge}
-            now={nowTick}
+            onExpire={markQuoteStale}
           />
         </>
       )}
@@ -1686,7 +2006,7 @@ function AppPageInner() {
           {loading ? "Refreshing…" : quoteIsStale ? "Refresh expired quote" : "Refresh quote"}
         </button>
       )}
-      {quoteAgeLabel && selected && pollEnabled && !quoteIsStale && (
+      {selected && pollEnabled && !quoteIsStale && (
         <p className="mt-2 text-center text-[11px] text-[var(--ink-soft)]">
           Updates on its own
         </p>
@@ -1719,15 +2039,20 @@ function AppPageInner() {
           {error && (
             <ErrorBanner
               message={error}
+              tone={/lower the (amount|park amount)/i.test(error) ? "warn" : "danger"}
               onDismiss={() => setError(null)}
-              onRetry={() => {
-                setError(null);
-                if (tab === "trade" || tab === "explore") resolve();
-                else if (tab === "portfolio") loadPortfolio();
-              }}
+              onRetry={
+                /lower the (amount|park amount)/i.test(error)
+                  ? undefined
+                  : () => {
+                      setError(null);
+                      if (tab === "trade" || tab === "explore") resolve();
+                      else if (tab === "portfolio") loadPortfolio();
+                    }
+              }
             />
           )}
-          {status && (
+          {status && !txHash && (
             <p className="mt-3 text-sm text-[var(--signal)]">{plainStatus(status)}</p>
           )}
           {(confirming || confirmed || txHash) && (
@@ -1737,6 +2062,9 @@ function AppPageInner() {
               confirming={confirming}
               confirmed={confirmed}
               failed={failed}
+              kind={txKind}
+              summary={txSummary}
+              claimLater={unparkPending}
             />
           )}
 
@@ -2148,17 +2476,6 @@ function AppPageInner() {
                   history={history}
                   receipts={receipts}
                   onOpenReceipt={setActiveReceipt}
-                  onShareReceipt={async (full) => {
-                    const res = await copyShareReceipt(full);
-                    setStatus(
-                      res.ok
-                        ? res.shared
-                          ? "Receipt shared"
-                          : `Share link copied · /receipt/${full.id}`
-                        : "Couldn’t copy the share link",
-                    );
-                    return res;
-                  }}
                   costBasis={costBasis}
                   loading={loading}
                   onRefresh={loadPortfolio}
@@ -2196,15 +2513,8 @@ function AppPageInner() {
             >
               <TwapDesk
                 defaultTicker={ticker}
-                onActivateLimit={(opts) => {
-                  setTicker(opts.ticker);
-                  setAmount(String(opts.amountUsdt));
-                  chooseTab("trade");
-                  setStatus(
-                    `Limit armed · max ${opts.maxSpreadBps} bps - find venue`,
-                  );
-                  void resolve();
-                }}
+                busy={loading || building}
+                onActivateLimit={armLimit}
               />
             </motion.div>
           )}
@@ -2470,12 +2780,16 @@ function AppPageInner() {
                                 );
                                 return;
                               }
+                              setError(null);
                               setStatus(`Parking ${parkAmount} USDT into ${p.protocolName}…`);
                               try {
                                 const hashes = await depositPool(p.investmentId, parkAmount);
                                 const txHash = hashes[hashes.length - 1];
+                                setTxKind("park");
+      setUnparkPending(false);
+                                setTxSummary(`${parkAmount} USDT · ${p.protocolName}`);
                                 setTxHash(txHash);
-                                setStatus(`Parked ${parkAmount} USDT · ${p.protocolName}`);
+                                setStatus(null);
                                 setHistory(
                                   pushHistory({
                                     side: "park",
@@ -2491,6 +2805,9 @@ function AppPageInner() {
                                   ticker: "USDT",
                                   amountLabel: `${parkAmount} USDT`,
                                   vendor: p.protocolName,
+                                  mode: "Earn",
+                                  sessionState: session?.state,
+                                  simOk: true,
                                   status: "submitted",
                                   txHash,
                                   notes: [`APY ${p.apyDisplay}`],
@@ -2510,19 +2827,19 @@ function AppPageInner() {
                             disabled={!address || pool.toUpperCase() !== "USDT"}
                             onClick={async () => {
                               if (!address) return;
+                              setError(null);
+                              setTxHash(undefined);
+                              setUnparkPending(false);
                               setStatus(`Unparking ${p.protocolName}…`);
                               try {
-                                const hashes = await redeemPool(p.investmentId);
-                                const txHash = hashes[hashes.length - 1];
-                                setTxHash(txHash);
-                                setStatus(`Unparked · ${p.protocolName}`);
+                                const { hashes, settled } = await redeemPool(p.investmentId);
+                                setTxKind("unpark");
+                                setTxSummary(p.protocolName);
+                                setUnparkPending(!settled);
+                                setTxHash(hashes[hashes.length - 1]);
+                                setStatus(null);
                               } catch (err) {
-                                const msg = err instanceof Error ? err.message : "Unpark failed";
-                                setError(
-                                  /maxRedeem|returned no data|execution reverted/i.test(msg)
-                                    ? "Nothing is parked in this pool."
-                                    : msg,
-                                );
+                                setError(err instanceof Error ? err.message : "Unpark failed");
                                 setStatus(null);
                               }
                             }}

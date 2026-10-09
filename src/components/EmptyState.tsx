@@ -37,14 +37,23 @@ export function ErrorBanner({
   message,
   onDismiss,
   onRetry,
+  tone = "danger",
 }: {
   message: string;
   onDismiss?: () => void;
   onRetry?: () => void;
+  tone?: "danger" | "warn";
 }) {
   return (
-    <div className="mt-3 flex flex-wrap items-start justify-between gap-3 rounded-2xl bg-[var(--warn-soft)] px-4 py-3 text-sm text-[var(--danger)] ring-1 ring-[var(--danger)]/15">
-      <p className="min-w-0 flex-1">{message}</p>
+    <div
+      className={clsx(
+        "mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-3 text-sm ring-1",
+        tone === "warn"
+          ? "bg-[var(--warn-soft)] text-[var(--ink)] ring-black/10"
+          : "bg-[var(--warn-soft)] text-[var(--danger)] ring-[var(--danger)]/15",
+      )}
+    >
+      <p className="min-w-0 flex-1 leading-snug">{message}</p>
       <div className="flex gap-2">
         {onRetry && (
           <button type="button" className="btn btn-ghost !px-3 !py-1.5 text-xs" onClick={onRetry}>

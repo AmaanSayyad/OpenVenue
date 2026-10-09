@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 
 export const QUOTE_TTL_MS = 30_000;
@@ -11,13 +12,35 @@ export function quoteExpired(quoteAge: number | null, now: number) {
 
 export function QuoteExpiry({
   quoteAge,
-  now,
+  onExpire,
   className,
 }: {
   quoteAge: number | null;
-  now: number;
+  onExpire?: () => void;
   className?: string;
 }) {
+  const [now, setNow] = useState(() => Date.now());
+  const notified = useRef(false);
+
+  useEffect(() => {
+    notified.current = false;
+    if (quoteAge == null) return;
+    setNow(Date.now());
+    const id = setInterval(() => {
+      const next = Date.now();
+      setNow(next);
+      if (next - quoteAge > QUOTE_TTL_MS) clearInterval(id);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [quoteAge]);
+
+  useEffect(() => {
+    if (quoteAge == null || !onExpire || notified.current) return;
+    if (now - quoteAge <= QUOTE_TTL_MS) return;
+    notified.current = true;
+    onExpire();
+  }, [now, quoteAge, onExpire]);
+
   if (quoteAge == null) return null;
   const left = Math.max(0, QUOTE_TTL_MS - (now - quoteAge));
   const secs = Math.ceil(left / 1000);
