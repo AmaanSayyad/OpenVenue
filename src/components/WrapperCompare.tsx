@@ -9,7 +9,7 @@ import { kindLabel, type VenueDecision, type WrapperKind } from "@/lib/venue/typ
 function issuerLogo(kind: WrapperKind) {
   if (kind === "bstock") return "/brand/logos/bnb.png";
   if (kind === "ondo") return "/brand/logos/ondo.svg";
-  return "/brand/mark.svg";
+  return "/brand/logos/xstocks.svg";
 }
 
 type QuoteRow = VenueDecision["quotes"][number];

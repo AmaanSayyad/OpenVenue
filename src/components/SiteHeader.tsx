@@ -64,6 +64,7 @@ function SiteHeaderBar({
   const { open } = useAppKit();
   const { disconnect } = useDisconnect();
   const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -71,6 +72,10 @@ function SiteHeaderBar({
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [activeTab, onDesk]);
 
   const short = address
     ? `${address.slice(0, 6)}...${address.slice(-4)}`
@@ -100,7 +105,7 @@ function SiteHeaderBar({
           </Link>
         </div>
       )}
-      <div className="flex justify-center px-4 pt-3 sm:pt-4">
+      <div className="flex flex-col items-center px-4 pt-3 sm:pt-4">
         <motion.header
           initial={{ y: -12, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -133,7 +138,7 @@ function SiteHeaderBar({
 
           <nav
             className={clsx(
-              "flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto text-[13px] font-medium",
+              "hidden min-w-0 flex-1 items-center gap-0.5 overflow-x-auto text-[13px] font-medium lg:flex",
               light || dark ? "text-white/85" : "text-black",
             )}
           >
@@ -181,7 +186,7 @@ function SiteHeaderBar({
                     className="absolute -bottom-0.5 -right-1 h-3.5 w-3.5 rounded-full bg-white"
                   />
                 </span>
-                <span className="text-[14px] font-medium tracking-[-0.01em]">
+                <span className="hidden text-[14px] font-medium tracking-[-0.01em] sm:inline">
                   {short}
                 </span>
               </button>
@@ -202,15 +207,67 @@ function SiteHeaderBar({
               <Link
                 href="/app"
                 className={clsx(
-                  "btn btn-sm",
+                  "btn btn-sm hidden lg:inline-flex",
                   light || dark ? "btn-on-dark" : "btn-primary",
                 )}
               >
                 Launch App
               </Link>
             )}
+            <button
+              type="button"
+              aria-expanded={menuOpen}
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              onClick={() => setMenuOpen((open) => !open)}
+              className={clsx(
+                "flex h-9 w-9 items-center justify-center rounded-full lg:hidden",
+                light || dark ? "bg-white/10 text-white" : "bg-[#f2f2f2] text-black",
+              )}
+            >
+              {menuOpen ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
+                  <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+                </svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
+                  <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
+                </svg>
+              )}
+            </button>
           </div>
         </motion.header>
+        {menuOpen ? (
+          <div className="pointer-events-auto mx-auto mt-2 w-full max-w-[1440px] rounded-3xl border border-black/[0.06] bg-white p-2 text-black shadow-[var(--shadow-nav)] lg:hidden">
+            {!onDesk ? (
+              <Link href="/app" className="btn btn-primary mb-1 w-full">
+                Launch App
+              </Link>
+            ) : null}
+            <div className="grid grid-cols-2 gap-1">
+              {DESK_NAV.map((item) => {
+                const on = activeTab === item.id;
+                return (
+                  <Link
+                    key={item.id}
+                    href={`/app?tab=${item.id}`}
+                    className={clsx(
+                      "rounded-2xl px-3 py-3 text-sm font-medium",
+                      on ? "bg-black text-white" : "bg-[#f5f5f5]",
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+              <Link href="/how-it-works" className="rounded-2xl bg-[#f5f5f5] px-3 py-3 text-sm font-medium">
+                How it works
+              </Link>
+              <Link href="/marketplace" className="rounded-2xl bg-[#f5f5f5] px-3 py-3 text-sm font-medium">
+                Marketplace
+              </Link>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

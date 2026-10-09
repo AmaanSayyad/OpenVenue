@@ -8,8 +8,10 @@ import { tickerMeta } from "@/lib/venue/tickers";
 
 export function SavedStrategies({
   onRun,
+  busy,
 }: {
   onRun: (s: DeskStrategy) => void;
+  busy?: boolean;
 }) {
   const [items, setItems] = useState<DeskStrategy[]>([]);
 
@@ -70,9 +72,10 @@ export function SavedStrategies({
               <button
                 type="button"
                 className="btn btn-primary mt-5 w-full"
+                disabled={busy}
                 onClick={() => onRun(s)}
               >
-                Run {m.name}
+                {busy ? "Checking the quote…" : `Run ${m.name}`}
               </button>
             </li>
           );

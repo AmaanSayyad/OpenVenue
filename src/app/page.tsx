@@ -180,7 +180,7 @@ function ScrollHero() {
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center px-[5vw]">
           <motion.p
             style={{ color: wordColor }}
-            className="display min-w-0 flex-1 whitespace-nowrap text-right text-[clamp(1.65rem,4.4vw,4.15rem)] leading-none tracking-[-0.045em]"
+            className="display min-w-0 flex-1 whitespace-nowrap text-right text-[clamp(0.95rem,3.6vw,4.15rem)] leading-none tracking-[-0.045em]"
           >
             Welcome to
           </motion.p>
@@ -190,7 +190,7 @@ function ScrollHero() {
           />
           <motion.p
             style={{ color: wordColor }}
-            className="display min-w-0 flex-1 whitespace-nowrap text-left text-[clamp(1.65rem,4.4vw,4.15rem)] leading-none tracking-[-0.045em]"
+            className="display min-w-0 flex-1 whitespace-nowrap text-left text-[clamp(0.95rem,3.6vw,4.15rem)] leading-none tracking-[-0.045em]"
           >
             open market
           </motion.p>
@@ -393,7 +393,7 @@ function ProductBoard() {
         >
           <div className="flex min-h-[280px] flex-col rounded-[24px] border border-[#ececec] bg-white p-7 sm:p-8">
             <p className="text-[14px] text-[var(--ink-soft)]">{desk.lead.k}</p>
-            <p className="display mt-2 text-[64px] leading-none tracking-[-0.045em]">{desk.lead.v}</p>
+            <p className="display mt-2 text-[40px] leading-none tracking-[-0.045em] sm:text-[64px]">{desk.lead.v}</p>
             <p className="mt-2 text-[14px] text-[var(--ink-soft)]">{desk.lead.s}</p>
             <div className="mt-4 min-h-[180px] flex-1">
               <DotPlot values={desk.series} color={desk.accent} />
@@ -402,7 +402,7 @@ function ProductBoard() {
           <div className="grid min-h-[240px] gap-2.5 sm:grid-cols-2">
             <div className="flex flex-col rounded-[24px] border border-[#ececec] bg-white p-7">
               <p className="text-[14px] text-[var(--ink-soft)]">{desk.mid.k}</p>
-              <p className="display mt-2 text-[52px] leading-none tracking-[-0.045em]">{desk.mid.v}</p>
+              <p className="display mt-2 break-words text-[36px] leading-none tracking-[-0.045em] sm:text-[52px]">{desk.mid.v}</p>
               <div className="mt-auto grid grid-cols-4 gap-2 pt-6">
                 {TAPE.map((t) => (
                   <span
@@ -416,7 +416,7 @@ function ProductBoard() {
             </div>
             <div className="flex min-h-[220px] flex-col rounded-[24px] border border-[#ececec] bg-white p-7">
               <p className="text-[14px] text-[var(--ink-soft)]">{desk.end.k}</p>
-              <p className="display mt-2 text-[52px] leading-none tracking-[-0.045em]">{desk.end.v}</p>
+              <p className="display mt-2 break-words text-[36px] leading-none tracking-[-0.045em] sm:text-[52px]">{desk.end.v}</p>
               <p className="mt-2 text-[14px] text-[var(--ink-soft)]">{desk.end.s}</p>
               <div className="mt-auto h-36 pt-4">
                 <Bars values={desk.series} color={desk.accent} />
@@ -691,7 +691,29 @@ export default function HomePage() {
             </h2>
           </FadeUp>
 
-          <div className="mt-14 overflow-x-auto">
+          <ul className="mt-8 space-y-3 md:hidden">
+            {COMPARE.map((row) => (
+              <li key={row.f} className="rounded-2xl bg-[#171717] px-4 py-4">
+                <p className="text-[15px] text-white/90">{row.f}</p>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-center text-[12px] text-white/55">
+                  <div className="flex flex-col items-center gap-2">
+                    <span>OpenVenue</span>
+                    <Status kind={row.venue} />
+                  </div>
+                  <div className="flex flex-col items-center gap-2">
+                    <span>One wrapper</span>
+                    <Status kind={row.other} />
+                  </div>
+                  <div className="flex flex-col items-center gap-2">
+                    <span>Brokers</span>
+                    <Status kind={row.broker} />
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-14 hidden overflow-x-auto md:block">
             <div className="min-w-[760px]">
               <div className="grid grid-cols-[minmax(240px,1.25fr)_repeat(3,minmax(150px,1fr))] items-end">
                 <div className="flex h-16 items-end px-4 pb-3 pr-6 text-[15px] text-white/45">

@@ -77,75 +77,69 @@ export function TapeSellPanel() {
     setLoading(true);
     const next: RailResult[] = [];
     try {
-      const status = await baw("status");
+      const resolved = await fetch(
+        `/api/venue/resolve?ticker=${encodeURIComponent(ticker)}&amount=${encodeURIComponent(amount)}`,
+      ).then((r) => r.json());
+      const best = resolved?.decision?.bestQuote;
       next.push({
         rail: "wallet",
         name: "Status",
-        ok: Boolean(status.ok),
-        detail: status.missingCli
-          ? "Agentic Wallet isn’t installed on this machine."
-          : status.ok
-            ? "The wallet answered."
-            : "The wallet command didn’t run.",
-        raw: status.json || status,
+        ok: Boolean(resolved?.ok),
+        detail: resolved?.ok
+          ? "The desk reached BNB Chain and Binance."
+          : resolved?.error || "The desk could not reach Binance.",
+        raw: resolved?.ok ? { ticker: resolved.decision?.ticker } : resolved,
       });
 
       const gas = await baw("gas");
+      const gasWei = (gas.json as { gasPrice?: string } | undefined)?.gasPrice;
       next.push({
         rail: "wallet",
         name: "Gas",
         ok: Boolean(gas.ok),
         detail: gas.ok
-          ? "BNB Chain gas tiers are available."
-          : "Couldn’t read gas. The wallet command didn’t run.",
+          ? gasWei
+            ? `BNB Chain gas is ${gasWei} wei.`
+            : "BNB Chain gas is available."
+          : "Couldn’t read BNB Chain gas.",
         raw: gas.json,
       });
 
-      const resolved = await fetch(
-        `/api/venue/resolve?ticker=${encodeURIComponent(ticker)}&amount=${encodeURIComponent(amount)}`,
-      ).then((r) => r.json());
-      const toToken = resolved?.decision?.bestQuote?.candidate?.contractAddress as
-        | string
-        | undefined;
-      if (toToken) {
-        const quote = await baw("quote", { fromTokenQty: amount, toToken });
-        next.push({
-          rail: "wallet",
-          name: "Quote",
-          ok: Boolean(quote.ok),
-          detail: quote.ok
-            ? `${amount} USDT toward ${ticker}.`
-            : "The wallet couldn’t quote this wrapper.",
-          raw: quote.json,
-        });
-      } else {
-        next.push({
-          rail: "wallet",
-          name: "Quote",
-          ok: false,
-          detail: "No live wrapper to quote for this ticker.",
-        });
-      }
+      next.push({
+        rail: "wallet",
+        name: "Quote",
+        ok: Boolean(best?.route?.quoteId),
+        detail: best?.route?.quoteId
+          ? `${amount} USDT → ${best.candidate?.symbol || ticker} via ${best.route.vendorName || best.route.executionMode}.`
+          : resolved?.decision?.reason || "No live wrapper for this amount.",
+        raw: best
+          ? {
+              symbol: best.candidate?.symbol,
+              out: best.outAmountHuman,
+              mode: best.route?.executionMode,
+            }
+          : undefined,
+      });
 
-      const defi = await baw("defi");
+      const earn = await fetch("/api/venue/park").then((r) => r.json());
+      const earnCount = Array.isArray(earn.items) ? earn.items.length : 0;
       next.push({
         rail: "wallet",
         name: "Earn",
-        ok: Boolean(defi.ok),
-        detail: defi.ok
-          ? "Earn venues on BNB Chain came back."
-          : "Couldn’t list earn venues. The wallet command didn’t run.",
-        raw: defi.json,
+        ok: Boolean(earn.ok) && earnCount > 0,
+        detail:
+          earn.ok && earnCount > 0
+            ? `${earnCount} USDT earn pools on BNB Chain.`
+            : earn.error || "No USDT earn pools came back.",
+        raw: earn.ok ? { count: earnCount } : earn,
       });
 
       const pay = await fetch(
         `/api/venue/x402?ticker=${encodeURIComponent(ticker)}&amount=${encodeURIComponent(amount)}`,
       );
       const challenge = await pay.json();
-      const header =
-        pay.headers.get("payment-required") ||
-        pay.headers.get("x-payment-required") ||
-        "";
+      const b402Off =
+        challenge?.code === "1160401" || challenge?.code === 1160401;
       next.push({
         rail: "pay",
         name: "Challenge",
@@ -153,23 +147,20 @@ export function TapeSellPanel() {
         detail:
           pay.status === 402
             ? "Asked for $0.05 USDT before serving the tape."
-            : `Expected a payment request. Got HTTP ${pay.status}.`,
+            : b402Off
+              ? "B402 is not enabled on this API key, so the $0.05 request is not sent."
+              : challenge?.error || `No payment request. HTTP ${pay.status}.`,
         raw: challenge,
       });
 
-      const preview = await baw("x402-preview", {
-        paymentRequirements: JSON.stringify(challenge),
-      });
       next.push({
         rail: "pay",
         name: "Preview",
-        ok: Boolean(preview.ok),
-        detail: preview.ok
-          ? "The wallet read the payment request."
-          : preview.missingCli
-            ? "Agentic Wallet isn’t installed, so the request can’t be previewed."
-            : "The wallet couldn’t preview the payment request.",
-        raw: preview.json || { headerBytes: header.length },
+        ok: pay.status === 402,
+        detail:
+          pay.status === 402
+            ? "The $0.05 request is ready for a buyer to sign."
+            : "There is no payment request to preview until B402 is enabled.",
       });
 
       const studio = await fetch("/api/venue/studio").then((r) => r.json());
@@ -181,7 +172,7 @@ export function TapeSellPanel() {
           ? "The seller is up and answering."
           : studio.bag?.called
             ? "Studio is installed. Start the seller to take tape orders."
-            : "Studio isn’t installed on this machine.",
+            : "The seller agent is not running on this site. Quotes still come from the desk.",
         raw: studio,
       });
     } catch (e) {

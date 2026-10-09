@@ -767,7 +767,39 @@ export function PortfolioView({
           </div>
         </div>
 
-        <div className="mt-6 overflow-x-auto">
+        <ul className="mt-4 divide-y divide-black/[0.06] md:hidden">
+          {holdingsRows.map((r) => (
+            <li key={r.key} className="flex items-center gap-3 py-3">
+              <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-[var(--bg-muted)]">
+                <Image src={r.logo} alt="" fill className="object-cover" sizes="40px" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-semibold">{r.symbol}</div>
+                <div className="truncate text-xs text-[var(--ink-soft)]">
+                  {r.name} · {r.balance}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm font-medium">{fmtUsd(r.value)}</div>
+                {r.position ? (
+                  <button
+                    type="button"
+                    className="mt-1 text-xs font-medium underline"
+                    onClick={() => onSell(r.position!)}
+                  >
+                    Sell
+                  </button>
+                ) : null}
+              </div>
+            </li>
+          ))}
+          {holdingsRows.length === 0 ? (
+            <li className="py-8 text-center text-sm text-[var(--ink-soft)]">
+              No holdings match this filter.
+            </li>
+          ) : null}
+        </ul>
+        <div className="mt-6 hidden overflow-x-auto md:block">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead>
               <tr className="border-b border-black/5 text-[var(--ink-soft)]">
@@ -859,7 +891,7 @@ export function PortfolioView({
       {/* Allocation */}
       <section className="rounded-[28px] bg-white p-5 shadow-[var(--shadow-card)] ring-1 ring-black/[0.04] sm:p-7">
         <h3 className="display text-2xl">Portfolio Allocation</h3>
-        <div className="mt-3 flex gap-5 border-b border-black/5 text-sm">
+        <div className="mt-3 flex gap-4 overflow-x-auto border-b border-black/5 text-sm">
           {(
             [
               ["all", "All Assets"],
@@ -872,7 +904,7 @@ export function PortfolioView({
               type="button"
               onClick={() => setAllocTab(id)}
               className={clsx(
-                "pb-3 font-medium transition",
+                "shrink-0 whitespace-nowrap pb-3 font-medium transition",
                 allocTab === id
                   ? "border-b-2 border-[var(--ink)] text-[var(--ink)]"
                   : "text-[var(--ink-soft)]",

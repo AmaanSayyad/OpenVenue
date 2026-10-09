@@ -4,6 +4,7 @@ import { Manrope, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { PwaRegister } from "@/components/PwaRegister";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 
 /** Closest widely-licensed match to Ondo's Gellix: geometric, medium weight headlines. */
 const sans = Manrope({
@@ -64,6 +65,7 @@ export default async function RootLayout({
       <body className={`${sans.variable} ${body.variable} ${mono.variable}`}>
         <Providers cookies={cookies}>
           <div className="shell">{children}</div>
+          <MobileBottomNav />
           <PwaRegister />
         </Providers>
       </body>

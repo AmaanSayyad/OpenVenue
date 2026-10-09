@@ -61,7 +61,7 @@ export function SessionAutopilot({
   return (
     <div
       className={clsx(
-        "flex h-12 items-center gap-2 overflow-hidden rounded-full bg-white px-3 ring-1 ring-black/[0.06] sm:h-[52px] sm:gap-3 sm:px-4",
+        "flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-[22px] bg-white px-3 py-2.5 ring-1 ring-black/[0.06] sm:h-[52px] sm:flex-nowrap sm:gap-3 sm:overflow-hidden sm:rounded-full sm:px-4 sm:py-0",
         className,
       )}
     >
@@ -72,7 +72,7 @@ export function SessionAutopilot({
       <span className="shrink-0 rounded-full bg-[var(--bg-muted)] px-2.5 py-1 text-xs font-medium">
         {prefersAmm ? "On-chain pools" : "Quote venues"}
       </span>
-      <p className="min-w-0 flex-1 truncate text-sm text-[var(--ink-soft)]">
+      <p className="basis-full text-sm text-[var(--ink-soft)] sm:min-w-0 sm:flex-1 sm:basis-auto sm:truncate">
         {WHY[state] || live.label}
       </p>
       <span className="shrink-0 text-xs text-[var(--ink-soft)]">

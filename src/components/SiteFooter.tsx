@@ -4,11 +4,11 @@ export function SiteFooter() {
   return (
     <footer className="mt-auto bg-transparent pt-16 sm:pt-24">
       <div className="bg-white">
-      <div className="mx-auto w-full max-w-[1536px] px-8 pt-8 sm:px-14 sm:pt-10">
+      <div className="mx-auto w-full max-w-[1536px] overflow-hidden px-4 pt-8 sm:px-14 sm:pt-10">
         <p
           className="display w-full whitespace-nowrap text-center font-medium leading-none tracking-[-0.045em] text-[var(--ink)]"
           style={{
-            fontSize: "clamp(2.75rem, 12vw, 10.25rem)",
+            fontSize: "clamp(1.7rem, 12vw, 10.25rem)",
             paddingBottom: "0.36em",
           }}
         >

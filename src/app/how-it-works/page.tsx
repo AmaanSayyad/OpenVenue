@@ -19,7 +19,7 @@ const WRAPPERS = [
   {
     name: "xStocks",
     body: "The third wrapper for the same name, when it is listed.",
-    logo: null,
+    logo: "/brand/logos/xstocks.svg",
   },
 ];
 

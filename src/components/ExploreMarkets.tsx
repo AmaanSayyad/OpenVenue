@@ -589,7 +589,46 @@ export function ExploreMarkets({
               })}
             </div>
           ) : (
-            <div className="mt-4 overflow-x-auto">
+            <>
+            <ul className="mt-2 divide-y divide-black/[0.06] md:hidden">
+              {tableRows.map((r) => {
+                const m = tickerMeta(r.ticker);
+                const up = r.changePct >= 0;
+                return (
+                  <li key={r.ticker}>
+                    <button
+                      type="button"
+                      onClick={() => onSelect(r.ticker)}
+                      className="flex w-full items-center gap-3 py-3 text-left"
+                    >
+                      <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-[var(--bg-muted)]">
+                        <Image src={m.logo} alt="" fill className="object-cover" sizes="40px" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">{m.name}</span>
+                        <span className="block text-xs text-[var(--ink-soft)]">{m.onSymbol}</span>
+                      </span>
+                      <span className="text-right">
+                        <span className="block text-sm font-semibold tabular-nums">{fmtPrice(r.last)}</span>
+                        <span
+                          className={clsx(
+                            "block text-xs tabular-nums",
+                            r.last == null
+                              ? "text-[var(--ink-soft)]"
+                              : up
+                                ? "text-[var(--signal)]"
+                                : "text-[var(--danger)]",
+                          )}
+                        >
+                          {moveLabel(r)}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="mt-4 hidden overflow-x-auto md:block">
               <table className="w-full min-w-[900px] text-left text-[13px]">
                 <thead>
                   <tr className="border-b border-black/5 text-[12px] text-[var(--ink-soft)]">
@@ -743,6 +782,7 @@ export function ExploreMarkets({
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
       </section>
