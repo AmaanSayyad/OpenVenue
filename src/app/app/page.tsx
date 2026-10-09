@@ -204,12 +204,15 @@ function AppPageInner() {
   const pollBusy = useRef(false);
   const limitBusy = useRef(false);
   const armLimitRef = useRef<
-    (opts: {
-      id: string;
-      ticker: string;
-      amountUsdt: number;
-      maxSpreadBps: number;
-    }) => Promise<void>
+    (
+      opts: {
+        id: string;
+        ticker: string;
+        amountUsdt: number;
+        maxSpreadBps: number;
+      },
+      quiet?: boolean,
+    ) => Promise<void>
   >(async () => {});
   const deepTicker = useRef<string | null>(null);
   const [sellPosition, setSellPosition] = useState<{
@@ -784,7 +787,7 @@ function AppPageInner() {
       return false;
     }
     const tradeSide: "buy" | "sell" =
-      opts.pick && opts.amountUsdt != null ? "buy" : side;
+      opts?.pick && opts.amountUsdt != null ? "buy" : side;
     const fromToken =
       tradeSide === "sell" && !opts?.pick
         ? pick.candidate.contractAddress
