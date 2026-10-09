@@ -1634,14 +1634,15 @@ function AppPageInner() {
       if (!json.ok) throw new Error(json.error || "Resolve failed");
       const best = json.decision.bestQuote as VenueDecision["bestQuote"];
       const spread = best?.candidate?.spreadBps;
+      const cap = armedSpreadLimit(json.decision.session, opts.maxSpreadBps);
       const within =
         typeof spread === "number" &&
-        spread <= opts.maxSpreadBps &&
+        spread <= cap &&
         Boolean(best?.route?.quoteId);
       if (!within || !best) {
         const wide =
           typeof spread === "number"
-            ? `Spread is ${(spread / 100).toFixed(2)}%, wider than ${(opts.maxSpreadBps / 100).toFixed(2)}%.`
+            ? `Spread is ${(spread / 100).toFixed(2)}%, wider than ${(cap / 100).toFixed(2)}%.`
             : "No live quote yet.";
         if (quiet) {
           setStatus(`${opts.ticker} stays armed. ${wide}`);
@@ -1683,7 +1684,9 @@ function AppPageInner() {
       setQuoteAge(Date.now());
       if (best.route.quoteId) setSelectedQuoteId(best.route.quoteId);
       setStatus(
-        `Signing ${best.candidate.symbol} · ${(spread / 100).toFixed(2)}% from the reference`,
+        cap > opts.maxSpreadBps
+          ? `Pre-market quote is ${(spread / 100).toFixed(2)}% from the reference. Signing inside the ${(cap / 100).toFixed(2)}% off-hours band.`
+          : `Signing ${best.candidate.symbol} · ${(spread / 100).toFixed(2)}% from the reference`,
       );
       const filled = await executeBest({
         pick: best,
@@ -1708,6 +1711,15 @@ function AppPageInner() {
   }
 
   armLimitRef.current = armLimit;
+
+function armedSpreadLimit(session: string | undefined, maxSpreadBps: number) {
+  const offHours =
+    session === "pre_market" ||
+    session === "after_hours" ||
+    session === "closed" ||
+    session === "weekend";
+  return offHours ? Math.max(maxSpreadBps, 15) : maxSpreadBps;
+}
 
   useEffect(() => {
     if (tab !== "orders" || !address) return;
@@ -2073,13 +2085,34 @@ function AppPageInner() {
           {error && (
             <ErrorBanner
               message={error}
-              tone={/lower the (amount|park amount)/i.test(error) ? "warn" : "danger"}
+              tone={
+                /lower the (amount|park amount)|wider than/i.test(error)
+                  ? "warn"
+                  : "danger"
+              }
               onDismiss={() => setError(null)}
               onRetry={
                 /lower the (amount|park amount)/i.test(error)
                   ? undefined
                   : () => {
                       setError(null);
+                      if (tab === "orders") {
+                        const next = loadDeskOrders().find(
+                          (o) =>
+                            o.status === "active" &&
+                            o.kind === "limit" &&
+                            o.limitSpreadBps != null,
+                        );
+                        if (next?.limitSpreadBps != null) {
+                          void armLimit({
+                            id: next.id,
+                            ticker: next.ticker,
+                            amountUsdt: next.amountUsdt,
+                            maxSpreadBps: next.limitSpreadBps,
+                          });
+                        }
+                        return;
+                      }
                       if (tab === "trade" || tab === "explore") resolve();
                       else if (tab === "portfolio") loadPortfolio();
                     }
@@ -2548,6 +2581,7 @@ function AppPageInner() {
               <TwapDesk
                 defaultTicker={ticker}
                 busy={loading || building}
+                sessionState={session?.state}
                 onActivateLimit={armLimit}
               />
             </motion.div>

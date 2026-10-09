@@ -19,10 +19,12 @@ const SPREADS = ["5", "15", "30"] as const;
 export function TwapDesk({
   defaultTicker,
   busy,
+  sessionState,
   onActivateLimit,
 }: {
   defaultTicker?: string;
   busy?: boolean;
+  sessionState?: string;
   onActivateLimit?: (opts: {
     id: string;
     ticker: string;
@@ -223,6 +225,11 @@ export function TwapDesk({
               </span>{" "}
               when the spread is {bps} bps ({(bps / 100).toFixed(2)}%) or
               tighter. It signs on this page when the quote is inside that band.
+              {sessionState &&
+              sessionState !== "open" &&
+              bps < 15
+                ? " Until the US session is open, a pre-market pool signs within 15 bps."
+                : ""}
             </p>
           ) : (
             <p>
