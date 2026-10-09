@@ -5,9 +5,11 @@
 Say you want NVDA. OpenVenue finds the live wrapper among **bStocks**, **Ondo**, and **xStocks**, scores SWAP vs RFQ under US market hours, simulates the route, and executes spot on BSC mainnet. When equity venues are quiet, it parks idle USDT in BSC DeFi.
 
 
-Source: [github.com/AmaanSayyad/OpenVenue](https://github.com/AmaanSayyad/OpenVenue)
-Live: [openvenue.xyz](https://openvenue.xyz)
-Pitch deck: [OpenVenue](https://app.chroniclehq.com/share/0f55cc23-897b-4a17-9ae9-c430e7e7eadb/610bb562-477b-4a08-97fa-acb555e80fc0)
+| | |
+| --- | --- |
+| Source | [github.com/AmaanSayyad/OpenVenue](https://github.com/AmaanSayyad/OpenVenue) |
+| Live | [openvenue.xyz](https://openvenue.xyz) |
+| Pitch deck | [OpenVenue](https://app.chroniclehq.com/share/0f55cc23-897b-4a17-9ae9-c430e7e7eadb/610bb562-477b-4a08-97fa-acb555e80fc0) |
 
 ---
 
