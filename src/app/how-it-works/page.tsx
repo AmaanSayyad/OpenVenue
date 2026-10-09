@@ -47,7 +47,7 @@ const STEPS = [
   {
     n: "05",
     t: "Park",
-    d: "If nothing quotes, OpenVenue builds a deposit for idle USDT instead of leaving cash sitting.",
+    d: "If nothing quotes, park idle USDT in a pool that accepts it. Unpark sends the USDT back.",
   },
 ];
 
@@ -70,9 +70,14 @@ export default function HowItWorksPage() {
               xStock. OpenVenue picks the one that is live, checks the size, and
               only then asks you to sign.
             </p>
-            <Link href="/app" className="btn btn-primary mt-6">
-              Launch OpenVenue
-            </Link>
+            <div className="mt-6 flex flex-wrap gap-2">
+              <Link href="/app" className="btn btn-primary">
+                Launch OpenVenue
+              </Link>
+              <Link href="/app?tab=explore&tour=1" className="btn btn-ghost">
+                Take the guide
+              </Link>
+            </div>
           </div>
 
           <div className="grid gap-3">

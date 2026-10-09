@@ -4,12 +4,9 @@
 
 Say you want NVDA. OpenVenue finds the live wrapper among **bStocks**, **Ondo**, and **xStocks**, scores SWAP vs RFQ under US market hours, simulates the route, and executes spot on BSC mainnet. When equity venues are quiet, it parks idle USDT in BSC DeFi.
 
-Built for [BNB Hack: Tokenized Stocks Edition](https://www.bnbchain.org/en/hackathons/tokenized-stocks).
 
 Source: [github.com/AmaanSayyad/OpenVenue](https://github.com/AmaanSayyad/OpenVenue)
-
 Live: [openvenue.xyz](https://openvenue.xyz)
-
 Pitch deck: [OpenVenue](https://app.chroniclehq.com/share/0f55cc23-897b-4a17-9ae9-c430e7e7eadb/610bb562-477b-4a08-97fa-acb555e80fc0)
 
 ---
@@ -554,26 +551,11 @@ BNBhack/
 
 | Resource | URL |
 | --- | --- |
-| BNB Hack: Tokenized Stocks | https://www.bnbchain.org/en/hackathons/tokenized-stocks |
-| DX report form | https://forms.gle/EUQ39xf54GHjC2ys5 |
-| Project submission form | https://forms.gle/yToDUzaDMwWnq6R6A |
 | In-repo DX notes | [`docs/DX-REPORT.md`](./docs/DX-REPORT.md) |
 | How it works (app) | `/how-it-works` |
 | Marketplace listing (app) | `/marketplace` |
 | Desk | `/app` |
 | Pitch deck | https://app.chroniclehq.com/share/0f55cc23-897b-4a17-9ae9-c430e7e7eadb/610bb562-477b-4a08-97fa-acb555e80fc0 |
-
-### Binance / BNB
-
-| Resource | URL |
-| --- | --- |
-| Web3 Dev Portal | https://web3.binance.com/en/dev-portal |
-| `/build` API base | https://web3.binance.com/build |
-| BSCScan | https://bscscan.com |
-| BNB Chain docs / faucet | https://docs.bnbchain.org/bnb-smart-chain/developers/faucet/ |
-| Skills hub | https://github.com/binance/binance-skills-hub |
-| bnbagent-studio | https://github.com/bnb-chain/bnbagent-studio |
-| MPP / B402 selling guide | https://github.com/bnb-chain/bnbagent-studio/blob/main/docs/guides/mpp-b402-selling.md |
 
 ### Local docs in this repo
 
@@ -587,9 +569,6 @@ BNBhack/
 
 ## Security
 
-- Never commit `.env.local`, `DEMO_PRIVATE_KEY`, or `venuetape/.studio/` keystores.
-- Rotate any API secret that was pasted into chat or screenshots.
-- `OC_SECRET_KEY` stays on the server (`src/lib/binance/client.ts`); the browser only signs user txs.
 - Simulation gate + quote expiry reduce bad payloads; still review wallet prompts.
 - Paid x402/MPP replay protection is application-owned (Studio M01) - do not treat `bag doctor` as proof of durable replay storage.
 
@@ -597,4 +576,4 @@ BNBhack/
 
 ## License
 
-MIT - hackathon build.
+MIT

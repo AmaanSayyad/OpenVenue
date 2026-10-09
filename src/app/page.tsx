@@ -97,7 +97,7 @@ const FEATURES = [
   },
   {
     t: "Idle cash parking",
-    d: "When equity venues go quiet, OpenVenue builds a DeFi deposit path so USDT doesn't sit idle.",
+    d: "When equity venues go quiet, park USDT in a pool that accepts it. Unpark sends it back.",
   },
   {
     t: "Risk & size ladders",
@@ -247,7 +247,7 @@ const DESKS = [
   {
     id: "park",
     name: "Park",
-    body: "When equity venues are closed, OpenVenue builds a DeFi deposit for leftover USDT. Pools that reject BSC USDT are left off the list.",
+    body: "Park leftover USDT in a BSC pool that accepts it. One click deposits. Unpark sends the USDT back.",
     pill: "Idle USDT",
     accent: "#1f9d55",
     soft: "#eef8f2",
@@ -675,6 +675,9 @@ export default function HomePage() {
             <Link href="/app" className="btn btn-on-dark">
               Explore OpenVenue
             </Link>
+            <Link href="/app?tab=explore&tour=1" className="btn btn-glass">
+              Take the guide
+            </Link>
             <Link href="/how-it-works" className="btn btn-glass">
               Read the flow
             </Link>
@@ -910,11 +913,16 @@ export default function HomePage() {
             </h2>
             <p className="mt-4 max-w-xl text-[clamp(1.15rem,2vw,1.65rem)] leading-snug text-white/90">
               Connect a wallet, resolve a ticker, and run a simulated route on
-              mainnet.
+              mainnet. The guide walks the desk the first time you open it.
             </p>
-            <Link href="/app" className="btn btn-on-dark mt-8 h-12 px-6 text-[15px]">
-              Open app
-            </Link>
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <Link href="/app" className="btn btn-on-dark h-12 px-6 text-[15px]">
+                Open app
+              </Link>
+              <Link href="/app?tab=explore&tour=1" className="btn btn-glass h-12 px-6 text-[15px]">
+                Take the guide
+              </Link>
+            </div>
           </div>
         </div>
       </section>
