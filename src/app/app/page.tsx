@@ -635,54 +635,49 @@ function AppPageInner() {
     if (side !== "sell" || !address) return;
     let cancel = false;
     (async () => {
-      let book = portfolio as {
-        positions?: Array<{
+      try {
+        const res = await fetch(`/api/venue/portfolio?wallet=${address}`).then((r) =>
+          r.json(),
+        );
+        if (cancel || !res.ok) return;
+        const positions = (res.portfolio?.positions || []) as Array<{
           symbol: string;
           ticker: string;
           contractAddress: string;
           balance: string;
           balanceWei: string;
         }>;
-      } | null;
-      if (!book?.positions) {
-        try {
-          const res = await fetch(`/api/venue/portfolio?wallet=${address}`).then(
-            (r) => r.json(),
+        setPortfolio(res.portfolio);
+        const want = ticker.toUpperCase();
+        const matches = positions.filter((p) => {
+          const sym = String(p.symbol || "").toUpperCase();
+          const rowTicker = String(p.ticker || "").toUpperCase();
+          return (
+            Number(p.balance) > 0 &&
+            (rowTicker === want || sym.startsWith(want))
           );
-          if (cancel || !res.ok) return;
-          book = res.portfolio;
-          setPortfolio(res.portfolio);
-        } catch {
+        });
+        const pick =
+          matches.find((p) => p.symbol.toUpperCase().endsWith("B")) || matches[0];
+        if (!pick) {
+          setSellPosition(null);
           return;
         }
-      }
-      if (cancel) return;
-      const matches = (book?.positions || []).filter(
-        (p) => p.ticker.toUpperCase() === ticker.toUpperCase() && Number(p.balance) > 0,
-      );
-      setSellPosition((prev) => {
-        const keep = matches.find((p) => p.contractAddress === prev?.contractAddress);
-        const pick = keep || matches[0];
-        if (!pick) return null;
-        if (
-          prev?.contractAddress === pick.contractAddress &&
-          prev.balanceWei === pick.balanceWei
-        ) {
-          return prev;
-        }
-        return {
+        setSellPosition({
           symbol: pick.symbol,
           ticker: pick.ticker,
           contractAddress: pick.contractAddress,
           balanceWei: pick.balanceWei,
           balance: pick.balance,
-        };
-      });
+        });
+      } catch {
+        if (!cancel) setSellPosition(null);
+      }
     })();
     return () => {
       cancel = true;
     };
-  }, [side, address, ticker, portfolio]);
+  }, [side, address, ticker]);
 
   useEffect(() => {
     if (side !== "sell" || !sellPosition) return;
@@ -1844,13 +1839,19 @@ function AppPageInner() {
           ) : (
             <div className="mt-2 rounded-2xl bg-[var(--bg-muted)] p-4 text-sm text-[var(--ink-soft)]">
               <EmptyState
-                title={address ? "No position selected" : "Wallet not connected"}
+                title={
+                  !address
+                    ? "Wallet not connected"
+                    : portfolio
+                      ? `No ${ticker} in this wallet`
+                      : `Checking ${ticker}`
+                }
                 body={
                   !address
                     ? "Connect a wallet. If it holds this stock, the ticket fills itself."
                     : portfolio
-                      ? `This wallet has no ${ticker} to sell.`
-                      : `Looking up ${ticker} in this wallet…`
+                      ? `This wallet has no ${ticker} balance to sell.`
+                      : "Reading this wallet for a matching stock."
                 }
                 actionLabel={address ? "Go to Portfolio" : "Connect wallet"}
                 onAction={() => {

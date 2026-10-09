@@ -1,5 +1,5 @@
 /* OpenVenue PWA shell - cache app shell only. */
-const CACHE = "venue-shell-v2";
+const CACHE = "venue-shell-v3";
 const PRECACHE = ["/", "/app", "/manifest.webmanifest", "/brand/mark.svg"];
 
 self.addEventListener("install", (event) => {
@@ -24,18 +24,8 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/api/")) return;
 
   event.respondWith(
-    caches.match(request).then((cached) => {
-      const fetched = fetch(request)
-        .then((res) => {
-          if (res.ok && request.destination === "document") {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(request, copy));
-          }
-          return res;
-        })
-        .catch(() => cached);
-      if (request.destination === "document") return fetched;
-      return cached || fetched;
-    }),
+    fetch(request).catch(() =>
+      caches.match(request).then((cached) => cached || Response.error()),
+    ),
   );
 });
