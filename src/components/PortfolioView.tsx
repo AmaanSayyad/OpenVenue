@@ -61,17 +61,76 @@ function classColor(label: string) {
   return "#0d9488";
 }
 
-function historyType(side: HistoryItem["side"]) {
-  if (side === "buy") return "Bought";
-  if (side === "sell") return "Sold";
-  if (side === "approve") return "Approved";
-  return "Parked";
+type ActivityRow = {
+  id: string;
+  at: string;
+  side: HistoryItem["side"];
+  ticker: string;
+  symbol?: string;
+  amountLabel: string;
+  mode?: string;
+  vendor?: string;
+  status: HistoryItem["status"];
+  failReason?: string;
+};
+
+type ActivityFilter = "all" | "trades" | "failed";
+
+function activityTitle(row: ActivityRow) {
+  const name = row.symbol || row.ticker;
+  if (row.side === "buy") return `Bought ${name}`;
+  if (row.side === "sell") return `Sold ${name}`;
+  if (row.side === "approve") return `Approved ${row.ticker}`;
+  return "Parked USDT";
+}
+
+function activityAmount(row: ActivityRow) {
+  if (row.side === "approve") return null;
+  const label = row.amountLabel.trim();
+  if (!label) return null;
+  if (row.side === "park" && !/usdt/i.test(label)) return `${label} USDT`;
+  if (row.side === "sell" && !/usdt/i.test(label)) {
+    const qty = Number(label);
+    if (Number.isFinite(qty)) {
+      return qty.toLocaleString(undefined, { maximumFractionDigits: 6 });
+    }
+  }
+  return label;
+}
+
+function activityDetail(row: ActivityRow) {
+  if (row.status === "failed") {
+    if (!row.failReason) return "Didn't land on BSC";
+    if (/simulation gate/i.test(row.failReason)) return "Stopped before it was sent";
+    if (/execution reverted/i.test(row.failReason)) return "The swap reverted";
+    const clean = row.failReason.replace(/^Simulate on gate blocked execute:\s*/i, "");
+    return clean.length > 72 ? `${clean.slice(0, 69)}…` : clean;
+  }
+  if (row.side === "approve") return "Spending approval for the swap";
+  return [row.vendor, row.mode].filter(Boolean).join(" · ");
 }
 
 function statusLabel(s: HistoryItem["status"]) {
   if (s === "confirmed") return "Completed";
   if (s === "failed") return "Failed";
-  return "Submitted";
+  return "Pending";
+}
+
+function dayLabel(iso: string) {
+  const d = new Date(iso);
+  const today = new Date();
+  if (d.toDateString() === today.toDateString()) return "Today";
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+}
+
+function clockLabel(iso: string) {
+  return new Date(iso).toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function ActivityList({
@@ -80,28 +139,74 @@ function ActivityList({
   onOpenReceipt,
   onTradeTicker,
 }: {
-  activity: Array<
-    Pick<
-      HistoryItem,
-      "id" | "at" | "side" | "ticker" | "symbol" | "amountLabel" | "mode" | "vendor" | "status"
-    >
-  >;
+  activity: ActivityRow[];
   receipts: TradeReceipt[];
   onOpenReceipt?: (r: TradeReceipt) => void;
   onTradeTicker: (ticker: string) => void;
 }) {
+  const [filter, setFilter] = useState<ActivityFilter>("all");
+  const trades = activity.filter((row) => row.side !== "approve");
+  const failed = activity.filter((row) => row.status === "failed");
+  const visible =
+    filter === "trades" ? trades : filter === "failed" ? failed : activity;
+  const groups = useMemo(() => {
+    const order: string[] = [];
+    const byDay = new Map<string, ActivityRow[]>();
+    for (const row of visible) {
+      const key = new Date(row.at).toDateString();
+      const bucket = byDay.get(key);
+      if (bucket) bucket.push(row);
+      else {
+        order.push(key);
+        byDay.set(key, [row]);
+      }
+    }
+    return order.map((key) => ({
+      key,
+      label: dayLabel(byDay.get(key)![0].at),
+      rows: byDay.get(key)!,
+    }));
+  }, [visible]);
+  const completed = activity.filter((row) => row.status === "confirmed" && row.side !== "approve").length;
+  const approvals = activity.filter((row) => row.side === "approve").length;
+
   return (
     <section className="rounded-[28px] bg-white p-5 shadow-[var(--shadow-card)] ring-1 ring-black/[0.04] sm:p-7">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h3 className="display text-2xl">Activity</h3>
           <p className="mt-1 text-sm text-[var(--ink-soft)]">
-            Fills, failures, and parks from this desk.
+            {activity.length === 0
+              ? "Fills, failures, and parks from this desk."
+              : `${completed} completed · ${failed.length} failed${approvals ? ` · ${approvals} approvals` : ""}`}
           </p>
         </div>
-        <span className="text-xs text-[var(--ink-soft)]">
-          {activity.length} {activity.length === 1 ? "receipt" : "receipts"}
-        </span>
+        {activity.length > 0 ? (
+          <div className="flex gap-0.5 rounded-full bg-[var(--bg-muted)] p-1">
+            {(
+              [
+                ["all", "All", activity.length],
+                ["trades", "Trades", trades.length],
+                ["failed", "Failed", failed.length],
+              ] as const
+            ).map(([id, label, count]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setFilter(id)}
+                className={clsx(
+                  "rounded-full px-3 py-1 text-xs font-medium transition",
+                  filter === id
+                    ? "bg-white text-[var(--ink)] shadow-sm"
+                    : "text-[var(--ink-soft)]",
+                )}
+              >
+                {label}
+                <span className="ml-1 tabular-nums">{count}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
       {activity.length === 0 ? (
         <div className="mt-6 rounded-2xl bg-[var(--bg-muted)] px-5 py-10 text-center">
@@ -117,72 +222,99 @@ function ActivityList({
             Trade
           </button>
         </div>
+      ) : visible.length === 0 ? (
+        <div className="mt-6 rounded-2xl bg-[var(--bg-muted)] px-5 py-8 text-center">
+          <p className="font-medium">Nothing in this view</p>
+          <p className="mt-1 text-sm text-[var(--ink-soft)]">
+            {filter === "failed" ? "No failed trades on this desk." : "No trades yet."}
+          </p>
+        </div>
       ) : (
-        <ul className="mt-4 divide-y divide-black/[0.05]">
-          {activity.map((h) => {
-            const m = tickerMeta(h.ticker);
-            const d = new Date(h.at);
-            const receipt = receipts.find((r) => r.id === h.id);
-            return (
-              <li key={h.id} className="flex items-center gap-3 py-3.5">
-                <button
-                  type="button"
-                  className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                  onClick={() => receipt && onOpenReceipt?.(receipt)}
-                >
-                  <span className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-[var(--bg-muted)]">
-                    <Image
-                      src={m.logo}
-                      alt=""
-                      fill
-                      sizes="44px"
-                      className="object-contain p-1.5"
-                    />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex flex-wrap items-center gap-2">
-                      <span className="font-semibold">
-                        {historyType(h.side)} {h.symbol || h.ticker}
-                      </span>
-                      <span
+        <div className="mt-5 space-y-5">
+          {groups.map((group) => (
+            <div key={group.key}>
+              <p className="px-1 text-xs font-medium tracking-wide text-[var(--ink-soft)]">
+                {group.label}
+              </p>
+              <ul className="mt-2 space-y-1">
+                {group.rows.map((h) => {
+                  const m = tickerMeta(h.ticker);
+                  const receipt = receipts.find((r) => r.id === h.id);
+                  const amount = activityAmount(h);
+                  const quiet = h.side === "approve";
+                  return (
+                    <li key={h.id}>
+                      <button
+                        type="button"
                         className={clsx(
-                          "rounded-full px-2 py-0.5 text-[11px] font-medium",
-                          h.status === "confirmed" &&
-                            "bg-[var(--signal-soft)] text-[var(--signal)]",
-                          h.status === "failed" &&
-                            "bg-[#fdecee] text-[var(--danger)]",
-                          h.status === "submitted" &&
-                            "bg-[var(--bg-muted)] text-[var(--ink-soft)]",
+                          "flex w-full items-center gap-3 rounded-2xl px-2 py-2.5 text-left transition hover:bg-[var(--bg-muted)]",
+                          h.status === "failed" && "bg-[#fdecee]/70 hover:bg-[#fdecee]",
+                          quiet && "opacity-80",
                         )}
+                        onClick={() => receipt && onOpenReceipt?.(receipt)}
                       >
-                        {statusLabel(h.status)}
-                      </span>
-                    </span>
-                    <span className="mt-0.5 block truncate text-sm text-[var(--ink-soft)]">
-                      {h.amountLabel}
-                      {h.mode ? ` · ${h.mode}` : ""}
-                      {h.vendor ? ` · ${h.vendor}` : ""}
-                    </span>
-                  </span>
-                  <span className="hidden shrink-0 text-right text-xs text-[var(--ink-soft)] sm:block">
-                    <span className="block">
-                      {d.toLocaleDateString(undefined, {
-                        day: "numeric",
-                        month: "short",
-                      })}
-                    </span>
-                    <span className="block">
-                      {d.toLocaleTimeString(undefined, {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+                        <span className="relative h-11 w-11 shrink-0">
+                          <span className="absolute inset-0 overflow-hidden rounded-full bg-[var(--bg-muted)]">
+                            <Image
+                              src={m.logo}
+                              alt=""
+                              fill
+                              sizes="44px"
+                              className="object-contain p-1.5"
+                            />
+                          </span>
+                          <span
+                            className={clsx(
+                              "absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold ring-2 ring-white",
+                              h.side === "buy" && "bg-[var(--signal-soft)] text-[var(--signal)]",
+                              h.side === "sell" && "bg-[#fdecee] text-[var(--danger)]",
+                              h.side === "approve" && "bg-[var(--bg-muted)] text-[var(--ink-soft)]",
+                              h.side === "park" && "bg-[#fff6d8] text-[#8a5a00]",
+                            )}
+                            aria-hidden
+                          >
+                            {h.side === "buy" ? "+" : h.side === "sell" ? "−" : h.side === "approve" ? "✓" : "P"}
+                          </span>
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-semibold">{activityTitle(h)}</span>
+                          <span className="mt-0.5 block truncate text-sm text-[var(--ink-soft)]">
+                            {activityDetail(h)}
+                            {activityDetail(h) ? " · " : ""}
+                            {clockLabel(h.at)}
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-right">
+                          {amount ? (
+                            <span
+                              className={clsx(
+                                "block text-sm font-semibold tabular-nums",
+                                h.status === "failed" && "text-[var(--danger)]",
+                                h.status === "submitted" && "text-[var(--ink-soft)]",
+                              )}
+                            >
+                              {amount}
+                            </span>
+                          ) : null}
+                          <span
+                            className={clsx(
+                              "mt-0.5 block text-[11px] font-medium",
+                              h.status === "confirmed" && "text-[var(--signal)]",
+                              h.status === "failed" && "text-[var(--danger)]",
+                              h.status === "submitted" && "text-[var(--ink-soft)]",
+                            )}
+                          >
+                            {statusLabel(h.status)}
+                          </span>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </div>
       )}
     </section>
   );
@@ -412,6 +544,7 @@ export function PortfolioView({
         mode: r.mode,
         vendor: r.vendor,
         status: r.status,
+        failReason: r.failReason,
       }));
     }
     return history;
