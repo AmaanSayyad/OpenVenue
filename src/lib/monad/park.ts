@@ -70,7 +70,7 @@ export type ParkCall = {
   data: string;
   value?: string;
   callDataType: "APPROVE" | "DEPOSIT" | "WITHDRAW";
-  chainId: number;
+  chainId?: number;
 };
 
 async function fetchLlamaApy(): Promise<{ apy: number; tvlUsd: number | null }> {

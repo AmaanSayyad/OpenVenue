@@ -79,7 +79,7 @@ export type VenueDecision = {
   nextUsOpenIso: string;
   network: "monad-mainnet" | "monad-testnet";
   chainId: number;
-  quoteAsset: "USDC";
+  quoteAsset: "USDC" | "USDT";
   candidates: VenueCandidate[];
   recommended: VenueCandidate | null;
   reason: string;

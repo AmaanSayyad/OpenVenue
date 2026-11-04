@@ -98,16 +98,17 @@ Source: [`contracts/src/OpenVenueDesk.sol`](./contracts/src/OpenVenueDesk.sol) �
 9. [Sequence diagrams](#sequence-diagrams)
 10. [Core tech stack](#core-tech-stack)
 11. [Business model](#business-model)
-12. [Go-to-market](#go-to-market)
-13. [Roadmap](#roadmap)
-14. [Environment variables](#environment-variables)
-15. [Run locally](#run-locally)
-16. [Mainnet demo](#mainnet-demo)
-17. [Scripts](#scripts)
-18. [Repo map](#repo-map)
-19. [Links](#links)
-20. [Security](#security)
-21. [License](#license)
+12. [Pre-market fit, revenue & innovation](#pre-market-fit-revenue--innovation)
+13. [Go-to-market](#go-to-market)
+14. [Roadmap](#roadmap)
+15. [Environment variables](#environment-variables)
+16. [Run locally](#run-locally)
+17. [Mainnet demo](#mainnet-demo)
+18. [Scripts](#scripts)
+19. [Repo map](#repo-map)
+20. [Links](#links)
+21. [Security](#security)
+22. [License](#license)
 
 ---
 
@@ -195,7 +196,7 @@ OpenVenue treats “buy NVDA” as **one intent** — compare venues, execute th
 | **History** | Receipts, Share link → `/receipt/[id]` |
 | **Park** | Aave V3 USDC on Monad — approve when needed, then deposit; Unpark withdraws aUSDC |
 | **Agent tab** | NL intents → resolve / park / portfolio |
-| **Guide** | Spotlight tour. First visit, header **Guide**, or `/app?tab=explore&tour=1` |
+| **Guide** | Spotlight tour (v2): Monad-home fees/Park, USDT vs USDC ticket, multi-chain portfolio. First visit, header **Guide**, or `/app?tab=explore&tour=1` |
 | **PWA** | Manifest + service worker + mobile bottom nav |
 
 ### Agent / marketplace
@@ -440,13 +441,53 @@ Hackathon posture: **no custody**, spot only, users pay gas + venue fees; OpenVe
 
 ---
 
+## Pre-market fit, revenue & innovation
+
+Blitz rubric lens (judges): **pre-market fit**, **revenue potential & strategy**, **innovation & originality**.
+
+### Pre-market fit
+
+| Signal | Why it fits now |
+| --- | --- |
+| **Fragmented wrappers** | Same ticker ships as Anchored / bStocks / Ondo / xStocks with different hours, spreads, and chains — traders already bounce between UIs |
+| **Monad equity moment** | Anchored + Monday Trade put tokenized US names on Monad; desks still need a **session-aware aggregator**, not another single-issuer tab |
+| **Off-hours capital** | Pre-market / after-hours / weekends — RFQ thins out; AMM + **Park USDC on Monad Aave** is the natural idle-cash path |
+| **Self-custody buyers** | Crypto-native users want MetaMask fills + on-chain fee clarity, not a brokerage KYC detour for a first trade |
+| **Agent distribution** | Bots need a priced JSON resolve face (`/api/venue/agent`, x402) — humans get the same router in the Agent tab |
+
+OpenVenue is not competing with Anchored as an **issuer**. Anchored creates the asset; OpenVenue is the **desk that shops issuers** and monetizes on Monad.
+
+### Revenue potential & strategy
+
+| Horizon | Play |
+| --- | --- |
+| **Day 0 (shipped)** | 15 bps platform fee on fills, settled on **Monad** to the fee recipient; transparent in the ticket |
+| **Agents** | x402 resolve (~$0.05 USDC on Monad) — machine-readable best venue without scraping the UI |
+| **Volume loop** | Free retail desk → more compares → more signed fills → more Monad fee hops |
+| **Near-term** | Premium alerts / TWAP automation; issuer placement or attestation surfacing (non-custodial distribution) |
+| **Not the model** | Custody, hidden spread markup, or forcing one wrapper brand |
+
+Strategy in one line: **win the intent layer (“buy NVDA”)**, keep settlement gravity on Monad, let issuers compete underneath.
+
+### Innovation & originality
+
+| Idea | What is new |
+| --- | --- |
+| **Monad-home desk** | Fees, Park, AppKit surface, and verified **OpenVenueDesk** live on Monad even when the stock fill hops to an issuer venue |
+| **Session-aware router** | US equity calendar biases RFQ vs AMM so pre-market recommendations match real liquidity |
+| **Flight-style compare** | One ticker → scored multi-wrapper quote → MetaMask execute → Monad fee — not three DEX bookmarks |
+| **Park fallback** | When equity routes fail or markets are quiet, one-tap Aave V3 USDC on Monad instead of dead-end UX |
+| **Human + agent same brain** | Desk UI and `/api/venue/*` share resolve/build — agents are not a bolt-on chatbot |
+
+---
+
 ## Go-to-market
 
 1. **Monad Blitz** — Demo mainnet NVDA path + Park + verified desk; submit via [Blitz Portal](https://blitz.devnads.com).
 2. **Monad ecosystem** — Home-chain product for tokenized stocks; deep-link from `/marketplace` and `/how-it-works`.
 3. **Creator / agent loops** — Shareable receipts (`/receipt/[id]`) and PWA install for mobile desk habit.
 4. **Wrapper issuers** — Surface attestation + corporate actions so Anchored / Ondo / bStock / xStock users land in one UI.
-5. **Content** — How-it-works page, [pitch deck](https://app.chroniclehq.com/amaan-s-workspace/openvenue-monad), [demo video](https://drive.google.com/drive/folders/1TuNcIJzfz2zBeFZEqPaOEqWkbUR-vCXw?usp=sharing), [tweet](https://x.com/amaanbiz/status/2117954547817828767), DX write-up as trust collateral.
+5. **Content** — How-it-works page, [pitch deck](https://app.chroniclehq.com/amaan-s-workspace/openvenue-monad), [demo video](https://drive.google.com/drive/folders/1TuNcIJzfz2zBeFZEqPaOEqWkbUR-vCXw?usp=sharing), [creative ad](https://drive.google.com/file/d/12rtNovkV10BZShgV5a4_k0TEUCS13Z_N/view?usp=drive_link), [tweet](https://x.com/amaanbiz/status/2117954547817828767) (tags **@monad** · **@monad_dev** · **@geeky_kartikey**), DX write-up as trust collateral.
 
 ---
 

@@ -60,6 +60,7 @@ async function buildRoute(
   candidate: VenueCandidate,
   amountUsdc: number,
   prefersAmm: boolean,
+  opts?: { side?: "buy" | "sell"; fromTokenAmountWei?: string },
 ): Promise<QuoteRoute | null> {
   if (!candidate.live) return null;
   if (!candidate.onChainPrice || candidate.onChainPrice <= 0) return null;
@@ -70,50 +71,87 @@ async function buildRoute(
     return null;
   }
 
+  const side = opts?.side || "buy";
   const feeBps = PLATFORM_FEE_BPS;
-  // Venue fill uses full notional; OpenVenue fee is a separate Monad hop
-  const fee = amountUsdc * (feeBps / 10_000);
+  // Notional for fee preview: buys use USDT size; sells use stock × mark
+  const notionalUsd =
+    side === "sell"
+      ? Math.max(
+          0,
+          (Number(opts?.fromTokenAmountWei || 0) / 1e18) *
+            candidate.onChainPrice,
+        )
+      : amountUsdc;
+  const fee = notionalUsd * (feeBps / 10_000);
   const decimals = candidate.quoteDecimals ?? 18;
-  const quoteToken = (candidate.quoteToken || usdcForChain(defaultChainId())) as `0x${string}`;
-  const inAtomic = usdcToAtomic(amountUsdc, decimals);
+  const quoteToken = (candidate.quoteToken ||
+    usdcForChain(defaultChainId())) as `0x${string}`;
+  const stock = candidate.contractAddress as `0x${string}`;
   const feeAtomic = usdcToAtomic(fee, decimals);
 
-  let outAtomic = BigInt(Math.round((amountUsdc / candidate.onChainPrice) * 1e18));
-  let vendorName = `${candidate.platform} · chain ${candidate.executionChainId}`;
-
-  // Live Pancake quote when executing on BSC
-  if (candidate.executionChainId === 56 && inAtomic > 0n) {
+  // BSC issuer venues must have a live Pancake path — never recommend synthetic fills.
+  if (candidate.executionChainId === 56) {
     try {
+      if (side === "sell") {
+        const amountIn = opts?.fromTokenAmountWei
+          ? BigInt(opts.fromTokenAmountWei)
+          : 0n;
+        if (amountIn <= 0n) return null;
+        const q = await quotePancake({
+          tokenIn: stock,
+          tokenOut: quoteToken,
+          amountIn,
+        });
+        if (!q.ok) return null;
+        return {
+          quoteId: `ov-${candidate.symbol}-${Date.now()}`,
+          executionMode: "SWAP",
+          vendorName: `${candidate.platform} · PancakeSwap BSC`,
+          fromTokenAmount: amountIn.toString(),
+          toTokenAmount: q.amountOut.toString(),
+          estimateGasFee: "0.0003",
+          priceImpactPercent: ((candidate.spreadBps || 0) / 100).toFixed(3),
+          approveTarget: stock,
+          platformFeeAtomic: feeAtomic.toString(),
+          platformFeeBps: feeBps,
+          executionChainId: 56,
+        };
+      }
+
+      const inAtomic = usdcToAtomic(amountUsdc, decimals);
+      if (inAtomic <= 0n) return null;
       const q = await quotePancake({
         tokenIn: quoteToken,
-        tokenOut: candidate.contractAddress as `0x${string}`,
+        tokenOut: stock,
         amountIn: inAtomic,
       });
-      if (q.ok) {
-        outAtomic = q.amountOut;
-        vendorName = `${candidate.platform} · PancakeSwap BSC`;
-      }
+      if (!q.ok) return null;
+      return {
+        quoteId: `ov-${candidate.symbol}-${Date.now()}`,
+        executionMode: "SWAP",
+        vendorName: `${candidate.platform} · PancakeSwap BSC`,
+        fromTokenAmount: inAtomic.toString(),
+        toTokenAmount: q.amountOut.toString(),
+        estimateGasFee: "0.0003",
+        priceImpactPercent: ((candidate.spreadBps || 0) / 100).toFixed(3),
+        approveTarget: quoteToken,
+        platformFeeAtomic: feeAtomic.toString(),
+        platformFeeBps: feeBps,
+        executionChainId: 56,
+      };
     } catch {
-      /* keep synthetic */
+      return null;
     }
   }
 
-  const mode: "SWAP" | "RFQ" =
-    candidate.hours === "24/7" || prefersAmm ? "SWAP" : "SWAP";
+  // Monad Anchored: no Uniswap path wired yet — keep visible as compare-only via live listing,
+  // but do not return an executable route (UI must not prompt MetaMask for a dead swap).
+  if (candidate.kind === "anchored") {
+    return null;
+  }
 
-  return {
-    quoteId: `ov-${candidate.symbol}-${Date.now()}`,
-    executionMode: mode,
-    vendorName,
-    fromTokenAmount: inAtomic.toString(),
-    toTokenAmount: outAtomic.toString(),
-    estimateGasFee: candidate.executionChainId === 56 ? "0.0003" : "0.002",
-    priceImpactPercent: ((candidate.spreadBps || 0) / 100).toFixed(3),
-    approveTarget: quoteToken,
-    platformFeeAtomic: feeAtomic.toString(),
-    platformFeeBps: feeBps,
-    executionChainId: candidate.executionChainId,
-  };
+  void prefersAmm;
+  return null;
 }
 
 function scoreCandidate(
@@ -180,21 +218,32 @@ export async function resolveVenue(params: {
       continue;
     }
 
-    const route = await buildRoute(candidate, amount, prefersAmm);
+    const route = await buildRoute(candidate, amount, prefersAmm, {
+      side,
+      fromTokenAmountWei: params.fromTokenAmountWei,
+    });
     if (!route) {
       quotes.push({
         candidate,
         ok: false,
-        error: "No executable route right now",
+        error:
+          candidate.executionChainId === 56
+            ? "No PancakeSwap liquidity for this wrapper right now"
+            : candidate.kind === "anchored"
+              ? "Anchored is listed on Monad but has no executable AMM path in OpenVenue yet — use a BSC venue to fill"
+              : "No executable route right now",
       });
       continue;
     }
 
+    // Buys receive stock (18d); sells receive USDT/USDC (quote decimals)
+    const outDecimals =
+      side === "sell" ? (candidate.quoteDecimals ?? 18) : 18;
     quotes.push({
       candidate,
       ok: true,
       route,
-      outAmountHuman: atomicToHuman(route.toTokenAmount, 18),
+      outAmountHuman: atomicToHuman(route.toTokenAmount, outDecimals),
     });
   }
 
@@ -208,7 +257,12 @@ export async function resolveVenue(params: {
       best = {
         candidate: q.candidate,
         route: q.route,
-        outAmountHuman: q.outAmountHuman || atomicToHuman(q.route.toTokenAmount, 18),
+        outAmountHuman:
+          q.outAmountHuman ||
+          atomicToHuman(
+            q.route.toTokenAmount,
+            side === "sell" ? (q.candidate.quoteDecimals ?? 18) : 18,
+          ),
       };
     }
   }
@@ -244,7 +298,8 @@ export async function resolveVenue(params: {
     nextUsOpenIso: session.nextOpen.toISOString(),
     network: networkLabel(homeChainId),
     chainId: best?.candidate.executionChainId ?? homeChainId,
-    quoteAsset: "USDC",
+    quoteAsset:
+      best?.candidate.executionChainId === 56 ? "USDT" : "USDC",
     candidates,
     recommended:
       best?.candidate ?? candidates.find((c) => c.live) ?? candidates[0] ?? null,

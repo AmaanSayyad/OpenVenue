@@ -35,7 +35,7 @@ export function TwapDesk({
   const [orders, setOrders] = useState<DeskOrder[]>([]);
   const [kind, setKind] = useState<DeskOrderKind>("limit");
   const [ticker, setTicker] = useState(defaultTicker || "NVDA");
-  const [amount, setAmount] = useState("50");
+  const [amount, setAmount] = useState("5");
   const [limitBps, setLimitBps] = useState("15");
   const [hours, setHours] = useState("4");
   const [slices, setSlices] = useState("8");
@@ -91,8 +91,10 @@ export function TwapDesk({
       <section className="rounded-[28px] bg-white p-5 shadow-[var(--shadow-card)] ring-1 ring-black/[0.04] sm:p-7">
         <h3 className="display text-2xl">Place an order</h3>
         <p className="mt-1 text-sm text-[var(--ink-soft)]">
-          A limit arms on this page and signs when the quote is inside your
-          band. A TWAP saves a slice plan here (manual or re-arm each slice).
+          Limits and TWAPs are denominated in USDC and only auto-sign on{" "}
+          <span className="font-medium text-[var(--ink)]">Monad</span>. BNB
+          Chain wrapper fills stay on Trade — this desk will not switch you
+          there.
         </p>
 
         <div className="mt-5 grid grid-cols-2 gap-3">
@@ -139,7 +141,9 @@ export function TwapDesk({
                 onChange={(e) => setAmount(e.target.value)}
                 inputMode="decimal"
               />
-              <span className="shrink-0 text-xs text-[var(--ink-soft)]">USDC</span>
+              <span className="shrink-0 text-xs text-[var(--ink-soft)]">
+                USDC · Monad
+              </span>
             </span>
           </label>
         </div>
@@ -221,23 +225,21 @@ export function TwapDesk({
             <p>
               Buy{" "}
               <span className="font-semibold">
-                {amountOk ? `$${amountUsdt}` : "-"} of {meta.name}
+                {amountOk ? `${amountUsdt} USDC` : "-"} of {meta.name}
               </span>{" "}
-              when the spread is {bps} bps ({(bps / 100).toFixed(2)}%) or
-              tighter. It signs on this page when the quote is inside that band.
-              {sessionState &&
-              sessionState !== "open" &&
-              bps < 15
-                ? " Until the US session is open, a pre-market pool signs within 15 bps."
+              on Monad when the spread is {bps} bps ({(bps / 100).toFixed(2)}%)
+              or tighter. It only signs a Monad venue inside that band.
+              {sessionState && sessionState !== "open" && bps < 15
+                ? " Until the US session is open, the off-hours band widens to 15 bps."
                 : ""}
             </p>
           ) : (
             <p>
               About{" "}
               <span className="font-semibold">
-                ${sliceUsd.toFixed(2)} every {everyMin} min
+                {sliceUsd.toFixed(2)} USDC every {everyMin} min
               </span>{" "}
-              · {sliceN} buys of {meta.name} across {hourN} hours.
+              · {sliceN} Monad buys of {meta.name} across {hourN} hours.
             </p>
           )}
         </div>
@@ -300,7 +302,7 @@ export function TwapDesk({
                       <StatusPill status={o.status} />
                     </div>
                     <p className="mt-0.5 text-sm text-[var(--ink-soft)]">
-                      ${o.amountUsdt} USDC
+                      {o.amountUsdt} USDC · Monad
                       {o.kind === "limit" && o.limitSpreadBps != null
                         ? ` · within ${o.limitSpreadBps} bps`
                         : ""}

@@ -197,7 +197,9 @@ export function ReceiptModal({
             href={
               receipt.mode === "RFQ"
                 ? undefined
-                : `https://testnet.monadvision.com/tx/${receipt.txHash}`
+                : /pancake|bsc|bstock/i.test(receipt.vendor || "")
+                  ? `https://bscscan.com/tx/${receipt.txHash}`
+                  : `https://monadvision.com/tx/${receipt.txHash}`
             }
             target="_blank"
             rel="noreferrer"

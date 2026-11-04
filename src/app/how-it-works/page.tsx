@@ -72,9 +72,10 @@ export default function HowItWorksPage() {
             </h1>
             <p className="mt-4 text-[17px] leading-relaxed text-[var(--ink-soft)]">
               Tokenized stocks are fragmented across issuers. OpenVenue is the
-              flight aggregator for Monad: compare Anchored, xStocks, and future
-              Ondo / bStocks listings, then execute the best path. Fees settle
-              in USDC on Monad only - no other chains.
+              flight aggregator with Monad as home base: compare Anchored,
+              bStocks, Ondo, and xStocks, then execute the best live path.
+              Stock fills may use BNB Chain USDT; platform fees and Park settle
+              on Monad.
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
               <Link href="/app" className="btn btn-primary">

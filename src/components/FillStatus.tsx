@@ -2,6 +2,13 @@
 
 import clsx from "clsx";
 import type { Hex } from "viem";
+import {
+  BSC_CHAIN_ID,
+  chainLabel,
+  explorerName,
+  explorerTx,
+  MONAD_MAINNET_ID,
+} from "@/lib/monad/chains";
 
 export function FillStatus({
   txHash,
@@ -11,6 +18,8 @@ export function FillStatus({
   kind = "trade",
   summary,
   claimLater,
+  chainId = MONAD_MAINNET_ID,
+  onDismiss,
   className,
 }: {
   txHash?: Hex;
@@ -20,11 +29,15 @@ export function FillStatus({
   kind?: "trade" | "park" | "unpark";
   summary?: string | null;
   claimLater?: boolean;
+  chainId?: number;
+  onDismiss?: () => void;
   className?: string;
 }) {
   if (!txHash) return null;
 
   const short = `${txHash.slice(0, 6)}…${txHash.slice(-4)}`;
+  const network = chainLabel(chainId);
+  const explorer = explorerName(chainId);
   const title = failed
     ? kind === "park"
       ? "Park did not land"
@@ -40,12 +53,14 @@ export function FillStatus({
             : "Unparked"
           : "Filled"
       : confirming
-        ? "Waiting for Monad"
+        ? `Waiting for ${network}`
         : "Sent to the network";
   const body = failed
     ? kind === "trade"
-      ? "Monad did not include this transaction. Resolve again and sign before the quote expires."
-      : "Monad did not include this transaction."
+      ? chainId === BSC_CHAIN_ID
+        ? "BNB Chain did not include this swap (or it reverted). Raise size above dust, bump slippage, then resolve again."
+        : "Monad did not include this transaction. Resolve again and sign before the quote expires."
+      : `${network} did not include this transaction.`
     : confirmed
       ? kind === "park"
         ? summary
@@ -57,7 +72,9 @@ export function FillStatus({
             : summary
               ? `USDC from ${summary} is back in this wallet.`
               : "USDC is back in this wallet."
-          : "The trade is on Monad."
+          : chainId === BSC_CHAIN_ID
+            ? "Stock fill is on BNB Chain. Platform fee settles on Monad."
+            : "The trade is on Monad."
       : "This usually lands in a few seconds.";
 
   return (
@@ -91,15 +108,26 @@ export function FillStatus({
         )}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="font-semibold leading-tight">{title}</p>
+        <div className="flex items-start justify-between gap-3">
+          <p className="font-semibold leading-tight">{title}</p>
+          {onDismiss && (failed || confirmed || confirming) && (
+            <button
+              type="button"
+              className="shrink-0 text-xs font-medium text-[var(--ink-soft)] underline-offset-2 hover:underline"
+              onClick={onDismiss}
+            >
+              Dismiss
+            </button>
+          )}
+        </div>
         <p className="mt-1 text-sm text-[var(--ink-soft)]">{body}</p>
         <a
           className="mt-3 inline-flex max-w-full items-center gap-2 rounded-full bg-[var(--bg-muted)] px-3 py-1.5 text-xs font-medium text-[var(--ink)]"
-          href={`https://testnet.monadvision.com/tx/${txHash}`}
+          href={explorerTx(chainId, txHash)}
           target="_blank"
           rel="noreferrer"
         >
-          View on BscScan
+          View on {explorer}
           <span className="font-normal text-[var(--ink-soft)]">{short}</span>
         </a>
       </div>

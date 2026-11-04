@@ -96,7 +96,9 @@ export default function ShareReceiptPage() {
                 className="mt-5 block truncate rounded-xl bg-[var(--bg-muted)] px-3 py-2 text-xs underline"
                 href={
                   receipt.txHash.startsWith("0x")
-                    ? `https://testnet.monadvision.com/tx/${receipt.txHash}`
+                    ? /pancake|bsc|bstock/i.test(receipt.vendor || "")
+                      ? `https://bscscan.com/tx/${receipt.txHash}`
+                      : `https://monadvision.com/tx/${receipt.txHash}`
                     : undefined
                 }
                 target="_blank"

@@ -146,7 +146,8 @@ function listingsFor(ticker: string): VenueListing[] {
       liquidity: 70,
       hours: "24/7",
       live: true,
-      notes: "Live xStock on BNB Chain via PancakeSwap path.",
+      notes:
+        "xStock on BNB Chain — only recommended when PancakeSwap has a live path.",
     });
   } else {
     out.push({
@@ -220,7 +221,8 @@ function listingsFor(ticker: string): VenueListing[] {
       liquidity: 25,
       hours: "24/7",
       live: true,
-      notes: "Live on Monad (Anchored aStock). Liquidity is thin - bStocks usually wins.",
+      notes:
+        "Listed on Monad (Anchored aStock). Compare-only in OpenVenue until an AMM / RFQ path is wired — fills use BSC venues today.",
     });
   }
 

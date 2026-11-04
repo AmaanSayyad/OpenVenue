@@ -17,8 +17,9 @@ export type PortfolioPosition = {
   balanceWei: string;
   onChainPrice: number | null;
   valueUsdt: number | null;
-  kind?: WrapperKind;
+  kind?: WrapperKind | string;
   platform?: string;
+  chainId?: number;
 };
 
 export type PortfolioData = {
@@ -47,12 +48,14 @@ function shortAddr(a: string) {
   return `${a.slice(0, 6)}…${a.slice(-4)}`;
 }
 
-function assetClass(kind?: WrapperKind) {
-  if (!kind) return "Crypto";
-  if (kind === "ondo") return "Ondo Stocks";
-  if (kind === "bstock") return "bStocks";
-  if (kind === "xstock") return "xStocks";
-  return "RWA";
+function assetClass(kind?: WrapperKind | string) {
+  const k = String(kind || "").toLowerCase();
+  if (!k) return "Crypto";
+  if (k === "ondo") return "Ondo Stocks";
+  if (k === "bstock" || k === "bstocks") return "bStocks";
+  if (k === "xstock" || k === "xstocks") return "xStocks";
+  if (k === "anchored") return "Anchored";
+  return "Tokenized Stocks";
 }
 
 function classColor(label: string) {
@@ -665,9 +668,10 @@ export function PortfolioView({
     }
     for (const p of positions) {
       const m = tickerMeta(p.ticker || p.symbol);
+      const onBsc = p.chainId === 56;
       rows.push({
-        key: p.contractAddress,
-        name: m.name,
+        key: `${p.chainId || "x"}:${p.contractAddress}`,
+        name: onBsc ? `${m.name} · BNB Chain` : `${m.name} · Monad`,
         symbol: p.symbol,
         logo: m.logo,
         klass: assetClass(p.kind),
@@ -908,8 +912,9 @@ export function PortfolioView({
           </div>
         </div>
         <p className="mt-2 text-xs text-[var(--ink-soft)]">
-          Live Uniswap V3 on Monad: small MON ↔ USDC swaps. Tokenized-stock
-          venues compare on Trade; on-chain buys wait for issuer contracts.
+          Live Uniswap V3 on Monad: small MON ↔ USDC swaps. Tokenized stocks
+          from Monad and BNB Chain wrappers show in holdings when this wallet
+          holds them.
         </p>
 
         <ul className="mt-4 divide-y divide-black/[0.06] md:hidden">

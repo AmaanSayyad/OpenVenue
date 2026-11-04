@@ -32,6 +32,10 @@ export function formatWalletError(
     return "Wrong network in the wallet. Switch to Monad and try again.";
   }
 
+  if (lower.includes("getchainid is not a function")) {
+    return "Wallet session glitched. Disconnect MetaMask in the app, reconnect on Monad, then try again.";
+  }
+
   if (lower.includes("quote expired")) {
     return "The quote expired. Refresh the route and confirm again.";
   }

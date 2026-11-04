@@ -21,8 +21,9 @@ export type TourStep = {
   cta?: string;
 };
 
-export const TOUR_STORAGE_KEY = "venue.tour.v1";
-export const TOUR_STEP_KEY = "venue.tour.step.v1";
+/** Bump when copy/steps change so first-visit users get the new guide. */
+export const TOUR_STORAGE_KEY = "venue.tour.v2";
+export const TOUR_STEP_KEY = "venue.tour.step.v2";
 
 export const TOUR_PHASE_LABEL: Record<TourPhase, string> = {
   desk: "The desk",
@@ -66,8 +67,8 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: "why",
     phase: "desk",
-    title: "Trade the session, not the ticker.",
-    body: "OpenVenue routes tokenized stocks on Monad. It picks the wrapper that can fill now. You sign in MetaMask.",
+    title: "One intent. Best wrapper. Fees on Monad.",
+    body: "Say “buy NVDA.” OpenVenue compares Anchored, bStocks, Ondo, and xStocks, picks a live route, and you sign in MetaMask. Platform fees and Park always settle on Monad — even when the stock fill hops to BNB Chain.",
     tab: "explore",
     cta: "Show the desk",
   },
@@ -75,7 +76,7 @@ export const TOUR_STEPS: TourStep[] = [
     id: "desks",
     phase: "desk",
     title: "One wallet, every view",
-    body: "Explore, trade, portfolio, park, and orders. Moving between them does not disconnect the wallet.",
+    body: "Explore, Trade, Portfolio, Orders, Park, and Agent share the same MetaMask session. Switching tabs does not disconnect.",
     target: "desks",
     tab: "explore",
   },
@@ -83,7 +84,7 @@ export const TOUR_STEPS: TourStep[] = [
     id: "markets",
     phase: "desk",
     title: "Pick a name",
-    body: "Live marks for the names on the desk. Open one and the trade ticket loads with that ticker.",
+    body: "Live marks for the names on the desk. Open one and the trade ticket loads with that ticker and a cross-wrapper compare.",
     target: "markets",
     tab: "explore",
     cta: "Open a ticket",
@@ -92,7 +93,7 @@ export const TOUR_STEPS: TourStep[] = [
     id: "session",
     phase: "ticket",
     title: "The US session sets the route",
-    body: "Pre-market and after hours prefer on-chain pools. When the US session is open, quote venues are usually deeper.",
+    body: "Pre-market and after hours prefer AMM / off-hours pools. When the US session is open, quote venues are usually deeper. The banner tells you which mode you are in.",
     target: "session",
     tab: "trade",
     ticker: "NVDA",
@@ -100,8 +101,8 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: "ticket",
     phase: "ticket",
-    title: "Review, then sign",
-    body: "Amount, venue, and spread sit on the ticket. A simulation gate stops a trade that would revert. Nothing is sent until MetaMask confirms.",
+    title: "Pay the venue’s stable — fee on Monad",
+    body: "BNB Chain wrappers (bStocks / Ondo / xStocks) spend USDT on BSC. Monad venues use USDC. The ticket shows which. After the fill, OpenVenue settles the 15 bps platform fee on Monad.",
     target: "ticket",
     tab: "trade",
     ticker: "NVDA",
@@ -110,24 +111,24 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: "park",
     phase: "ticket",
-    title: "Hold USDC",
-    body: "When you are not in a stock, park USDC on Monad. One click asks for the approval, then the deposit. Unpark brings it back.",
+    title: "Park idle USDC on Monad",
+    body: "When you are not in a stock, park Circle USDC into Aave V3 on Monad. Approve once, then supply. Unpark withdraws anytime. Compare-only pools are listed for rates — one-click uses Aave.",
     target: "park",
     tab: "park",
   },
   {
     id: "orders",
     phase: "book",
-    title: "Limits wait for the spread",
-    body: "A limit stays on this page and signs when the quote is close enough. Off-hours, the band widens so a pre-market pool can still fill.",
+    title: "Limits stay on Monad",
+    body: "Orders are denominated in USDC and only auto-sign a Monad venue inside your spread band. BNB Chain wrapper fills stay on Trade — this desk will not switch you there.",
     target: "orders",
     tab: "orders",
   },
   {
     id: "portfolio",
     phase: "book",
-    title: "Holdings and the trail",
-    body: "Wallet balances, a sell from what you hold, and the receipt trail. Failed trades stay here with the reason.",
+    title: "Holdings across both chains",
+    body: "MON and USDC on Monad, plus tokenized stocks this wallet holds on Monad or BNB Chain (e.g. AAPLon). Sell from a row, or open Trade. Activity keeps local receipts — Pending means the wallet never confirmed that hop.",
     target: "portfolio",
     tab: "portfolio",
   },
@@ -135,7 +136,7 @@ export const TOUR_STEPS: TourStep[] = [
     id: "agent",
     phase: "book",
     title: "Ask in one sentence",
-    body: "“Buy $15 of NVDA” opens the ticket. Park opens earn. You still sign the transaction.",
+    body: "“Buy $15 of NVDA” opens the ticket with the best live route. “Park USDC” jumps to earn. You still sign every transaction in MetaMask.",
     target: "agent",
     tab: "agent",
   },
@@ -143,7 +144,7 @@ export const TOUR_STEPS: TourStep[] = [
     id: "connect",
     phase: "book",
     title: "Connect on Monad",
-    body: "MetaMask on Monad. Balances, park, and sells use this wallet.",
+    body: "Use MetaMask with Monad Mainnet (143) as home. Stock fills may ask to switch to BNB Chain briefly; fee and Park return to Monad.",
     target: "connect",
     tab: "explore",
     waitForWallet: true,

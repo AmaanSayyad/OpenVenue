@@ -34,36 +34,35 @@ async function pickPath(
   tokenOut: Address,
   amountIn: bigint,
 ): Promise<Address[] | null> {
-  const direct: Address[] = [tokenIn, tokenOut];
-  try {
-    const amounts = await client.readContract({
-      address: PANCAKE_ROUTER_V2,
-      abi: routerAbi,
-      functionName: "getAmountsOut",
-      args: [amountIn, direct],
-    });
-    if (amounts[amounts.length - 1] > 0n) return direct;
-  } catch {
-    /* try hop */
+  type Cand = { path: Address[]; out: bigint };
+  const cands: Cand[] = [];
+
+  const tryPath = async (path: Address[]) => {
+    try {
+      const amounts = await client.readContract({
+        address: PANCAKE_ROUTER_V2,
+        abi: routerAbi,
+        functionName: "getAmountsOut",
+        args: [amountIn, path],
+      });
+      const out = amounts[amounts.length - 1];
+      if (out > 0n) cands.push({ path, out });
+    } catch {
+      /* skip */
+    }
+  };
+
+  await tryPath([tokenIn, tokenOut]);
+  if (
+    tokenIn.toLowerCase() !== WBNB_BSC.toLowerCase() &&
+    tokenOut.toLowerCase() !== WBNB_BSC.toLowerCase()
+  ) {
+    await tryPath([tokenIn, WBNB_BSC, tokenOut]);
   }
 
-  // USDT → WBNB → token (or reverse)
-  const viaWbnb: Address[] = [tokenIn, WBNB_BSC, tokenOut];
-  if (tokenIn.toLowerCase() === WBNB_BSC.toLowerCase() || tokenOut.toLowerCase() === WBNB_BSC.toLowerCase()) {
-    return null;
-  }
-  try {
-    const amounts = await client.readContract({
-      address: PANCAKE_ROUTER_V2,
-      abi: routerAbi,
-      functionName: "getAmountsOut",
-      args: [amountIn, viaWbnb],
-    });
-    if (amounts[amounts.length - 1] > 0n) return viaWbnb;
-  } catch {
-    return null;
-  }
-  return null;
+  if (!cands.length) return null;
+  cands.sort((a, b) => (a.out > b.out ? -1 : a.out < b.out ? 1 : 0));
+  return cands[0].path;
 }
 
 export async function quotePancake(params: {

@@ -59,11 +59,29 @@ export function usdcForChain(chainId: number): `0x${string}` {
   return chainId === MONAD_MAINNET_ID ? USDC_MAINNET : USDC_TESTNET;
 }
 
+/** BNB Smart Chain - bStocks / Ondo / xStocks execution */
+export const BSC_CHAIN_ID = 56;
+
 export function explorerTx(chainId: number, hash: string): string {
+  if (chainId === BSC_CHAIN_ID) {
+    return `https://bscscan.com/tx/${hash}`;
+  }
   if (chainId === MONAD_MAINNET_ID) {
     return `https://monadvision.com/tx/${hash}`;
   }
   return `https://testnet.monadvision.com/tx/${hash}`;
+}
+
+export function explorerName(chainId: number): string {
+  if (chainId === BSC_CHAIN_ID) return "BscScan";
+  if (chainId === MONAD_MAINNET_ID) return "MonadVision";
+  return "MonadVision Testnet";
+}
+
+export function chainLabel(chainId: number): string {
+  if (chainId === BSC_CHAIN_ID) return "BNB Chain";
+  if (chainId === MONAD_MAINNET_ID) return "Monad";
+  return "Monad Testnet";
 }
 
 export function defaultChainId(): number {
@@ -71,6 +89,3 @@ export function defaultChainId(): number {
   if (raw === "143") return MONAD_MAINNET_ID;
   return MONAD_TESTNET_ID;
 }
-
-/** BNB Smart Chain - bStocks / Ondo / xStocks execution */
-export const BSC_CHAIN_ID = 56;

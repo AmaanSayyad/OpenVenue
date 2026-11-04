@@ -16,7 +16,13 @@ import "@/config/appkit";
 import { type Hex, type Address, decodeFunctionData, encodeFunctionData, erc20Abi, parseUnits } from "viem";
 import { buildPlatformFeeCalls } from "@/lib/monad/fees";
 import { USDT_ON_BSC } from "@/lib/venue/types";
-import { MONAD_MAINNET_ID } from "@/lib/monad/chains";
+import { BSC_CHAIN_ID, MONAD_MAINNET_ID } from "@/lib/monad/chains";
+import { waitVenueReceipt } from "@/lib/venue/waitReceipt";
+import {
+  ensureInjectedChain,
+  isConnectorChainIdBug,
+  sendInjectedTransaction,
+} from "@/lib/wallet/evm";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Sparkline } from "@/components/Sparkline";
@@ -130,20 +136,79 @@ function AppPageInner() {
   const { signTypedDataAsync } = useSignTypedData();
 
   async function ensureChain(targetId: number) {
-    if (chainId === targetId) return;
-    setStatus(
-      targetId === 56
-        ? "MetaMask: switch to BNB Chain for the stock fill…"
-        : targetId === MONAD_MAINNET_ID
-          ? "MetaMask: switch to Monad for platform fee…"
-          : `MetaMask: switch to chain ${targetId}…`,
-    );
-    await switchChainAsync({ chainId: targetId });
+    // Prefer EIP-1193 switch — wagmi/AppKit connectors sometimes lose getChainId after reconnect
+    try {
+      await ensureInjectedChain(targetId);
+      return;
+    } catch (injectedErr) {
+      const msg =
+        injectedErr instanceof Error
+          ? injectedErr.message.toLowerCase()
+          : String(injectedErr).toLowerCase();
+      if (
+        msg.includes("user rejected") ||
+        msg.includes("user denied") ||
+        msg.includes("rejected the request")
+      ) {
+        throw injectedErr;
+      }
+      if (chainId === targetId && !isConnectorChainIdBug(injectedErr)) return;
+      setStatus(
+        targetId === 56
+          ? "MetaMask: switch to BNB Chain for the stock fill…"
+          : targetId === MONAD_MAINNET_ID
+            ? "MetaMask: switch to Monad…"
+            : `MetaMask: switch to chain ${targetId}…`,
+      );
+      try {
+        await switchChainAsync({ chainId: targetId });
+      } catch (wagmiErr) {
+        if (isConnectorChainIdBug(wagmiErr) || isConnectorChainIdBug(injectedErr)) {
+          throw new Error(
+            "Wallet session glitched. Disconnect, reconnect on Monad, then park again.",
+          );
+        }
+        throw wagmiErr;
+      }
+    }
+  }
+
+  async function sendTx(args: {
+    to: Address;
+    data?: Hex;
+    value?: bigint;
+    chainId?: number;
+  }): Promise<Hex> {
+    const chain = args.chainId;
+    if (chain != null) {
+      await ensureChain(chain);
+    }
+    try {
+      return await sendTransactionAsync({
+        to: args.to,
+        data: args.data,
+        value: args.value,
+        chainId: chain,
+      });
+    } catch (err) {
+      if (!isConnectorChainIdBug(err)) throw err;
+      return sendInjectedTransaction({
+        to: args.to,
+        data: args.data,
+        value: args.value,
+        chainId: chain,
+      });
+    }
   }
 
   const [tab, setTab] = useState<Tab>("explore");
   const chooseTab = (next: Tab) => {
     setTab(next);
+    // Orders is Monad/USDC-only — drop stale BNB Chain trade errors when entering.
+    if (next === "orders") {
+      setError(null);
+      setStatus(null);
+    }
     const params = new URLSearchParams(window.location.search);
     if ((params.get("tab") || "explore") === next) return;
     params.set("tab", next);
@@ -168,6 +233,7 @@ function AppPageInner() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<Hex | undefined>();
+  const [txWatchChainId, setTxWatchChainId] = useState<number>(MONAD_MAINNET_ID);
   const [txKind, setTxKind] = useState<"trade" | "park" | "unpark">("trade");
   const [txSummary, setTxSummary] = useState<string | null>(null);
   const [unparkPending, setUnparkPending] = useState(false);
@@ -249,7 +315,8 @@ function AppPageInner() {
     error: fillError,
   } = useWaitForTransactionReceipt({
     hash: txHash,
-    timeout: 45_000,
+    chainId: txWatchChainId,
+    timeout: 120_000,
   });
 
   useEffect(() => {
@@ -672,6 +739,7 @@ function AppPageInner() {
           contractAddress: string;
           balance: string;
           balanceWei: string;
+          chainId?: number;
         }>;
         setPortfolio(res.portfolio);
         const want = ticker.toUpperCase();
@@ -680,18 +748,25 @@ function AppPageInner() {
           const rowTicker = String(p.ticker || "").toUpperCase();
           return (
             Number(p.balance) > 0 &&
-            (rowTicker === want || sym.startsWith(want))
+            (rowTicker === want ||
+              sym === want ||
+              sym.startsWith(want) ||
+              sym.replace(/^(A)/, "").startsWith(want))
           );
         });
+        // Prefer deepest / most common wrappers: bStock, Ondo, xStock, then Anchored
         const pick =
-          matches.find((p) => p.symbol.toUpperCase().endsWith("B")) || matches[0];
+          matches.find((p) => /B$/i.test(p.symbol)) ||
+          matches.find((p) => /on$/i.test(p.symbol)) ||
+          matches.find((p) => /x$/i.test(p.symbol)) ||
+          matches[0];
         if (!pick) {
           setSellPosition(null);
           return;
         }
         setSellPosition({
           symbol: pick.symbol,
-          ticker: pick.ticker,
+          ticker: pick.ticker || want,
           contractAddress: pick.contractAddress,
           balanceWei: pick.balanceWei,
           balance: pick.balance,
@@ -783,9 +858,11 @@ function AppPageInner() {
     localStorage.setItem("venue.receipts.v1", JSON.stringify(rNext));
     setReceipts(rNext);
     setError(
-      "This trade did not land on Monad. Resolve again and sign before the quote expires.",
+      txWatchChainId === BSC_CHAIN_ID
+        ? "This swap did not land on BNB Chain (dust size and low liquidity often revert). Try ≥1 USDT and higher slippage."
+        : "This trade did not land on Monad. Resolve again and sign before the quote expires.",
     );
-  }, [failed, txHash, fillError]);
+  }, [failed, txHash, fillError, txWatchChainId]);
 
   async function executeBest(opts?: {
     fromAgent?: boolean;
@@ -834,6 +911,17 @@ function AppPageInner() {
       setError("Invalid amount");
       return false;
     }
+    if (
+      execChain === BSC_CHAIN_ID &&
+      tradeSide === "buy" &&
+      Number(tradeAmount) > 0 &&
+      Number(tradeAmount) < 1
+    ) {
+      setError(
+        "This venue spends USDT on BNB Chain (not Monad USDC). Use at least ~1 USDT — smaller hops usually revert in MetaMask.",
+      );
+      return false;
+    }
 
     setBuilding(true);
     setError(null);
@@ -853,7 +941,7 @@ function AppPageInner() {
       amountLabel:
         tradeSide === "sell" && !opts?.pick
           ? sellPosition?.balance || "?"
-          : `${tradeAmount} USDC`,
+          : `${tradeAmount} ${execChain === BSC_CHAIN_ID ? "USDT" : "USDC"}`,
       amountUsdt: tradeSide === "buy" || opts?.pick ? Number(tradeAmount) : undefined,
       outAmountHuman: pick.outAmountHuman,
       quoteId: pick.route.quoteId,
@@ -990,13 +1078,15 @@ function AppPageInner() {
       } | null;
       if (approveTx?.data && json.allowancePending) {
         setStatus("Approve spending…");
-        const approveHash = await sendTransactionAsync({
+        const approveHash = await sendTx({
           to: (approveTx.to || fromToken) as Address,
           data: approveTx.data as Hex,
           value: approveTx.value ? BigInt(approveTx.value) : undefined,
+          chainId: execChain,
         });
         setTxKind("trade");
         setTxSummary(null);
+        setTxWatchChainId(execChain);
         setTxHash(approveHash);
         setHistory(
           pushHistory({
@@ -1015,8 +1105,9 @@ function AppPageInner() {
           status: "submitted",
           simOk: json.simOk ?? null,
         });
-        if (publicClient) {
-          await publicClient.waitForTransactionReceipt({ hash: approveHash });
+        const approveReceipt = await waitVenueReceipt(approveHash, execChain);
+        if (approveReceipt.status !== "success") {
+          throw new Error("Token approve reverted on-chain.");
         }
       }
 
@@ -1066,7 +1157,7 @@ function AppPageInner() {
             ? "Confirm stock swap on BNB Chain in MetaMask…"
             : "Confirm swap on Monad in MetaMask…",
       );
-      const hash = await sendTransactionAsync({
+      const hash = await sendTx({
         to: tx.to as Address,
         data: tx.data as Hex,
         value: tx.value ? BigInt(tx.value) : undefined,
@@ -1074,6 +1165,7 @@ function AppPageInner() {
       });
       setTxKind("trade");
       setTxSummary(`${tradeAmount} ${execChain === 56 ? "USDT" : "USDC"}`);
+      setTxWatchChainId(execChain);
       setTxHash(hash);
       setHistory(
         pushHistory({
@@ -1102,6 +1194,20 @@ function AppPageInner() {
       setReceipts(next);
       setActiveReceipt(next[0]);
 
+      setStatus(
+        execChain === BSC_CHAIN_ID
+          ? "Waiting for BNB Chain confirmation…"
+          : "Waiting for Monad confirmation…",
+      );
+      const fillReceipt = await waitVenueReceipt(hash, execChain);
+      if (fillReceipt.status !== "success") {
+        throw new Error(
+          execChain === BSC_CHAIN_ID
+            ? "Swap reverted on BNB Chain. Use ≥1 USDT and/or raise slippage."
+            : "Swap reverted on Monad.",
+        );
+      }
+
       // Platform fee always settles on Monad → fee recipient
       try {
         const notional = Number(tradeAmount) || 0;
@@ -1119,7 +1225,7 @@ function AppPageInner() {
             if (call.kind === "desk_record") {
               // Best-effort desk note - skip if it would block
               try {
-                await sendTransactionAsync({
+                await sendTx({
                   to: call.to,
                   data: call.data,
                   value: call.value,
@@ -1130,7 +1236,7 @@ function AppPageInner() {
               }
               continue;
             }
-            const feeHash = await sendTransactionAsync({
+            const feeHash = await sendTx({
               to: call.to,
               data: call.data,
               value: call.value,
@@ -1149,7 +1255,7 @@ function AppPageInner() {
         }
       } catch (feeErr) {
         const detail = feeErr instanceof Error ? feeErr.message : "fee failed";
-        setStatus(`Trade submitted; fee hop needs retry: ${detail}`);
+        setStatus(`Trade confirmed; fee hop needs retry: ${detail}`);
       }
 
       if (tradeSide === "buy") {
@@ -1248,6 +1354,7 @@ function AppPageInner() {
     data?: string;
     value?: string;
     callDataType?: string;
+    chainId?: number;
   };
 
   const vaultAbi = [
@@ -1293,7 +1400,6 @@ function AppPageInner() {
   }
 
   async function broadcastCalls(calls: ParkCall[], amountWei?: bigint) {
-    if (!publicClient) throw new Error("Wallet is not ready");
     const planned: ParkCall[] = [];
     for (const call of calls) {
       if (!call.to || !call.data) continue;
@@ -1316,13 +1422,24 @@ function AppPageInner() {
         call.value && call.value !== "0x0" && call.value !== "0"
           ? BigInt(call.value)
           : undefined;
-      const hash = await sendTransactionAsync({
+      const hash = await sendTx({
         to: call.to as Address,
         data: call.data as Hex,
         value,
+        chainId: call.chainId || MONAD_MAINNET_ID,
       });
       hashes.push(hash);
-      await publicClient.waitForTransactionReceipt({ hash });
+      const receipt = await waitVenueReceipt(
+        hash,
+        call.chainId || MONAD_MAINNET_ID,
+      );
+      if (receipt.status !== "success") {
+        throw new Error(
+          kind === "APPROVE"
+            ? "USDC approve reverted on Monad."
+            : "Aave supply reverted on Monad.",
+        );
+      }
     }
     if (!hashes.length) throw new Error("Earn transaction was empty");
     return hashes;
@@ -1540,7 +1657,7 @@ function AppPageInner() {
     setStatus(
       "Confirm the withdrawal in MetaMask. The swap back to USDC is the next prompt.",
     );
-    const withdrawHash = await sendTransactionAsync({
+    const withdrawHash = await sendTx({
       to: lisPool,
       data: withdrawData,
     });
@@ -1568,7 +1685,7 @@ function AppPageInner() {
     });
     if (allowance < lisBal) {
       setStatus("Approve lisUSD in MetaMask. The swap back to USDC follows.");
-      const approveHash = await sendTransactionAsync({
+      const approveHash = await sendTx({
         to: lisUsd,
         data: encodeFunctionData({
           abi: erc20Abi,
@@ -1580,7 +1697,7 @@ function AppPageInner() {
       await publicClient.waitForTransactionReceipt({ hash: approveHash });
     }
     setStatus("Confirm the swap back to USDC in MetaMask.");
-    const buyHash = await sendTransactionAsync({
+    const buyHash = await sendTx({
       to: psmAddr,
       data: encodeFunctionData({
         abi: listaAbi,
@@ -1679,7 +1796,7 @@ function AppPageInner() {
         functionName: "redeem",
         args: [claimable, address, address],
       });
-      const hash = await sendTransactionAsync({ to: vault, data });
+      const hash = await sendTx({ to: vault, data });
       await publicClient.waitForTransactionReceipt({ hash });
       return { hashes: [hash], settled: true };
     }
@@ -1698,7 +1815,7 @@ function AppPageInner() {
         functionName: "approve",
         args: [vault, held],
       });
-      const approveHash = await sendTransactionAsync({ to: share, data: approveData });
+      const approveHash = await sendTx({ to: share, data: approveData });
       hashes.push(approveHash);
       await publicClient.waitForTransactionReceipt({ hash: approveHash });
     }
@@ -1727,7 +1844,7 @@ function AppPageInner() {
       instantReady = false;
     }
     if (instantReady) {
-      const hash = await sendTransactionAsync({ to: vault, data: instantData });
+      const hash = await sendTx({ to: vault, data: instantData });
       hashes.push(hash);
       await publicClient.waitForTransactionReceipt({ hash });
       return { hashes, settled: true };
@@ -1749,7 +1866,7 @@ function AppPageInner() {
       functionName: "requestRedeem",
       args: [held, address, address],
     });
-    const hash = await sendTransactionAsync({ to: vault, data: requestData });
+    const hash = await sendTx({ to: vault, data: requestData });
     hashes.push(hash);
     await publicClient.waitForTransactionReceipt({ hash });
     return { hashes, settled: false };
@@ -1814,6 +1931,7 @@ function AppPageInner() {
       setTxKind("park");
       setUnparkPending(false);
       setTxSummary(`${parkAmtLabel} USDC · ${best.protocolName}`);
+      setTxWatchChainId(MONAD_MAINNET_ID);
       setTxHash(txHash);
       setError(null);
       setStatus(null);
@@ -1887,13 +2005,12 @@ function AppPageInner() {
 
       if (built.approve?.data && built.allowancePending) {
         setStatus("Approve USDC for Uniswap…");
-        const approveHash = await sendTransactionAsync({
+        const approveHash = await sendTx({
           to: built.approve.to as Address,
           data: built.approve.data as Hex,
+          chainId: MONAD_MAINNET_ID,
         });
-        if (publicClient) {
-          await publicClient.waitForTransactionReceipt({ hash: approveHash });
-        }
+        await waitVenueReceipt(approveHash, MONAD_MAINNET_ID);
       }
 
       const tx = built.swap?.tx as
@@ -1901,15 +2018,17 @@ function AppPageInner() {
         | undefined;
       if (!tx?.to || !tx?.data) throw new Error("Swap tx missing");
       setStatus("Confirm Uniswap swap…");
-      const hash = await sendTransactionAsync({
+      const hash = await sendTx({
         to: tx.to as Address,
         data: tx.data as Hex,
+        chainId: MONAD_MAINNET_ID,
         value: tx.value ? BigInt(tx.value) : undefined,
       });
       setTxKind("trade");
       setTxSummary(
         side === "buy_usdc" ? `${amount} MON → USDC` : `${amount} USDC → MON`,
       );
+      setTxWatchChainId(MONAD_MAINNET_ID);
       setTxHash(hash);
       setHistory(
         pushHistory({
@@ -1963,10 +2082,22 @@ function AppPageInner() {
     setSellPosition(null);
     if (!quiet) {
       setError(null);
-      setStatus(`Checking ${opts.ticker}…`);
+      setStatus(`Checking ${opts.ticker} on Monad…`);
       setLoading(true);
     }
     try {
+      // Orders desk is Monad-home: never auto-sign a BNB Chain / USDT hop from here.
+      if (opts.amountUsdt > 0 && opts.amountUsdt < 0.5) {
+        const msg =
+          "Orders use USDC on Monad. Arm at least ~0.5 USDC so the fill is not dust.";
+        if (quiet) setStatus(msg);
+        else {
+          setError(msg);
+          setStatus(null);
+        }
+        return;
+      }
+
       const qs = new URLSearchParams({
         ticker: opts.ticker,
         amount: String(opts.amountUsdt),
@@ -1975,80 +2106,94 @@ function AppPageInner() {
       });
       const json = await fetch(`/api/venue/resolve?${qs}`).then((r) => r.json());
       if (!json.ok) throw new Error(json.error || "Resolve failed");
-      const best = json.decision.bestQuote as VenueDecision["bestQuote"];
-      const spread = best?.candidate?.spreadBps;
+
+      const quotes = (json.decision?.quotes || []) as VenueDecision["quotes"];
+      const monadQuotes = quotes.filter((q) => {
+        if (!q.ok || !q.route?.quoteId) return false;
+        const chain =
+          q.route.executionChainId ||
+          q.candidate.executionChainId ||
+          Number(q.candidate.chainId);
+        return chain === MONAD_MAINNET_ID || chain === 143;
+      });
+      const best =
+        monadQuotes.sort(
+          (a, b) =>
+            (a.candidate.spreadBps ?? 999) - (b.candidate.spreadBps ?? 999),
+        )[0] || null;
+
+      if (!best) {
+        const msg =
+          "No Monad stock venue is executable for this ticker yet. Your limit stays armed in USDC here — it will sign when a Monad route is inside your band (Trade still handles BNB Chain wrappers separately).";
+        if (quiet) setStatus(`${opts.ticker} stays armed. Waiting on Monad.`);
+        else {
+          setStatus(null);
+          setError(msg);
+        }
+        return;
+      }
+
+      const spread = best.candidate.spreadBps;
       const cap = armedSpreadLimit(json.decision.session, opts.maxSpreadBps);
       const within =
         typeof spread === "number" &&
         spread <= cap &&
-        Boolean(best?.route?.quoteId);
-      if (!within || !best) {
+        Boolean(best.route?.quoteId);
+      if (!within) {
         const wide =
           typeof spread === "number"
             ? `Spread is ${(spread / 100).toFixed(2)}%, wider than ${(cap / 100).toFixed(2)}%.`
-            : "No live quote yet.";
+            : "No live Monad quote yet.";
         if (quiet) {
           setStatus(`${opts.ticker} stays armed. ${wide}`);
         } else {
           setStatus(null);
           setError(
-            `${wide} The order stays on this page and signs when the quote tightens.`,
+            `${wide} The order stays on this page and signs on Monad when the quote tightens.`,
           );
         }
         return;
       }
-      // Quote asset lives on the venue chain (BSC USDT or Monad USDC)
-      const execChain =
-        best.route.executionChainId ||
-        best.candidate.executionChainId ||
-        Number(best.candidate.chainId) ||
-        MONAD_MAINNET_ID;
-      const quoteToken = (best.candidate.quoteToken ||
-        (execChain === 56 ? USDT_ON_BSC : USDT_BSC)) as Address;
-      const quoteDecimals =
-        best.candidate.quoteDecimals ?? (execChain === 56 ? 18 : 6);
+
+      const quoteToken = (best.candidate.quoteToken || USDT_BSC) as Address;
+      const quoteDecimals = best.candidate.quoteDecimals ?? 6;
       const need = parseUnits(String(opts.amountUsdt), quoteDecimals);
-      await ensureChain(execChain);
-      {
-        const { createPublicClient, http } = await import("viem");
-        const { bsc } = await import("viem/chains");
-        const balClient =
-          execChain === 56
-            ? createPublicClient({
-                chain: bsc,
-                transport: http("https://bsc-dataseed.binance.org"),
-              })
-            : publicClient;
-        if (balClient) {
-          const quoteBal = await balClient.readContract({
-            address: quoteToken,
-            abi: erc20Abi,
-            functionName: "balanceOf",
-            args: [address],
-          });
-          if (quoteBal < need) {
-            const held = (Number(quoteBal) / 10 ** quoteDecimals).toFixed(2);
-            const unit = execChain === 56 ? "USDT" : "USDC";
-            const msg = `This wallet has ${held} ${unit} on ${execChain === 56 ? "BNB Chain" : "Monad"}. Lower the amount and try again.`;
-            if (quiet) setStatus(msg);
-            else {
-              setError(msg);
-              setStatus(null);
-            }
-            return;
+      await ensureChain(MONAD_MAINNET_ID);
+      if (publicClient) {
+        const quoteBal = await publicClient.readContract({
+          address: quoteToken,
+          abi: erc20Abi,
+          functionName: "balanceOf",
+          args: [address],
+        });
+        if (quoteBal < need) {
+          const held = (Number(quoteBal) / 10 ** quoteDecimals).toFixed(2);
+          const msg = `This wallet has ${held} USDC on Monad. Lower the amount and try again.`;
+          if (quiet) setStatus(msg);
+          else {
+            setError(msg);
+            setStatus(null);
           }
+          return;
         }
       }
+
+      if (!best.route?.quoteId) return;
+      const monadPick = {
+        candidate: best.candidate,
+        route: best.route,
+        outAmountHuman: best.outAmountHuman || "0",
+      };
       setDecision(json.decision);
       setQuoteAge(Date.now());
-      if (best.route.quoteId) setSelectedQuoteId(best.route.quoteId);
+      setSelectedQuoteId(monadPick.route.quoteId);
       setStatus(
         cap > opts.maxSpreadBps
-          ? `Pre-market quote is ${(spread / 100).toFixed(2)}% from the reference. Signing inside the ${(cap / 100).toFixed(2)}% off-hours band.`
-          : `Signing ${best.candidate.symbol} · ${(spread / 100).toFixed(2)}% from the reference`,
+          ? `Pre-market Monad quote is ${(spread! / 100).toFixed(2)}% from the reference. Signing inside the ${(cap / 100).toFixed(2)}% off-hours band.`
+          : `Signing ${best.candidate.symbol} on Monad · ${(spread! / 100).toFixed(2)}% from the reference`,
       );
       const filled = await executeBest({
-        pick: best,
+        pick: monadPick,
         amountUsdt: opts.amountUsdt,
         tickerName: opts.ticker,
         sessionState: json.decision.session,
@@ -2056,7 +2201,7 @@ function AppPageInner() {
       });
       if (filled) {
         updateDeskOrder(opts.id, { status: "filled" });
-        setStatus(`Limit filled · ${opts.ticker}`);
+        setStatus(`Limit filled on Monad · ${opts.ticker}`);
       }
     } catch (e) {
       if (!quiet) {
@@ -2108,6 +2253,24 @@ function armedSpreadLimit(session: string | undefined, maxSpreadBps: number) {
   const asset = tickerMeta(
     side === "sell" && sellPosition ? sellPosition.ticker : ticker,
   );
+  const venueChainId =
+    selected?.route?.executionChainId ||
+    selected?.candidate?.executionChainId ||
+    (selected?.candidate?.chainId
+      ? Number(selected.candidate.chainId)
+      : undefined) ||
+    decision?.bestQuote?.route?.executionChainId ||
+    decision?.bestQuote?.candidate?.executionChainId;
+  // Issuer venues on BSC settle in USDT; Anchored / Monad settle in USDC.
+  // Before a route is picked, default to USDT — that is where live liquidity usually sits.
+  const quoteUnit: "USDT" | "USDC" =
+    venueChainId === BSC_CHAIN_ID || venueChainId === 56
+      ? "USDT"
+      : venueChainId === MONAD_MAINNET_ID || venueChainId === 143
+        ? "USDC"
+        : "USDT";
+  const quoteUnitLogo =
+    quoteUnit === "USDT" ? "/brand/logos/usdt.png" : "/brand/logos/usdc.png";
   const refPrice =
     selected?.candidate.referencePrice ??
     selected?.candidate.onChainPrice ??
@@ -2151,6 +2314,12 @@ function armedSpreadLimit(session: string | undefined, maxSpreadBps: number) {
         <>
           <label className="mt-5 block text-xs font-medium text-[var(--ink-soft)]">
             Pay
+            {quoteUnit === "USDT" && (
+              <span className="ml-2 font-normal">· BNB Chain</span>
+            )}
+            {quoteUnit === "USDC" && venueChainId === MONAD_MAINNET_ID && (
+              <span className="ml-2 font-normal">· Monad</span>
+            )}
           </label>
           <div className="mt-2 flex items-center gap-3 rounded-2xl bg-[var(--bg-muted)] px-4 py-3">
             <input
@@ -2158,18 +2327,19 @@ function armedSpreadLimit(session: string | undefined, maxSpreadBps: number) {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               inputMode="decimal"
+              aria-label={`Pay amount in ${quoteUnit}`}
             />
             <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white py-1 pl-1 pr-2.5 text-sm font-semibold ring-1 ring-black/5">
               <span className="relative h-6 w-6 overflow-hidden rounded-full">
                 <Image
-                  src="/brand/logos/usdc.png"
-                  alt="USDC"
+                  src={quoteUnitLogo}
+                  alt={quoteUnit}
                   fill
                   className="object-cover"
                   sizes="24px"
                 />
               </span>
-              USDC
+              {quoteUnit}
             </span>
           </div>
           <label className="mt-4 block text-xs font-medium text-[var(--ink-soft)]">
@@ -2275,16 +2445,17 @@ function armedSpreadLimit(session: string | undefined, maxSpreadBps: number) {
               <div className="truncate text-2xl font-semibold tabular-nums">
                 {selected?.outAmountHuman
                   ? Number(selected.outAmountHuman).toLocaleString(undefined, {
-                      maximumFractionDigits: 2,
+                      maximumFractionDigits:
+                        Number(selected.outAmountHuman) >= 1 ? 4 : 6,
                     })
                   : "-"}
               </div>
-              <div className="mono text-xs text-[var(--ink-soft)]">USDC</div>
+              <div className="mono text-xs text-[var(--ink-soft)]">{quoteUnit}</div>
             </div>
             <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-white ring-1 ring-black/5">
               <Image
-                src="/brand/logos/usdc.png"
-                alt="USDC"
+                src={quoteUnitLogo}
+                alt={quoteUnit}
                 fill
                 className="object-cover"
                 sizes="36px"
@@ -2491,6 +2662,12 @@ function armedSpreadLimit(session: string | undefined, maxSpreadBps: number) {
               kind={txKind}
               summary={txSummary}
               claimLater={unparkPending}
+              chainId={txWatchChainId}
+              onDismiss={() => {
+                setTxHash(undefined);
+                setTxSummary(null);
+                setStatus(null);
+              }}
             />
           )}
 
@@ -3217,8 +3394,9 @@ function armedSpreadLimit(session: string | undefined, maxSpreadBps: number) {
                                 if (!hashes) return;
                                 const txHash = hashes[hashes.length - 1];
                                 setTxKind("park");
-      setUnparkPending(false);
+                                setUnparkPending(false);
                                 setTxSummary(`${parkAmount} USDC · ${p.protocolName}`);
+                                setTxWatchChainId(MONAD_MAINNET_ID);
                                 setTxHash(txHash);
                                 setStatus(null);
                                 setHistory(
@@ -3273,6 +3451,7 @@ function armedSpreadLimit(session: string | undefined, maxSpreadBps: number) {
                                 setTxKind("unpark");
                                 setTxSummary(p.protocolName);
                                 setUnparkPending(!settled);
+                                setTxWatchChainId(MONAD_MAINNET_ID);
                                 setTxHash(hashes[hashes.length - 1]);
                                 setStatus(null);
                               } catch (err) {
