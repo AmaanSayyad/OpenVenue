@@ -2,7 +2,7 @@
   "name": "openvenue",
   "version": "0.2.0",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "MIT",
   "description": "Tokenized stock aggregator on Monad Testnet & Mainnet",
   "homepage": "https://openvenue.xyz",
   "bugs": {

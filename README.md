@@ -17,8 +17,6 @@ Say you want NVDA. OpenVenue compares issuer venues (**Anchored** on Monad, plus
 | Tweet | [x.com/amaanbiz/status/…](https://x.com/amaanbiz/status/2117954547817828767) |
 | Blitz notes | [`docs/HACKATHON.md`](./docs/HACKATHON.md) · [`docs/DX-REPORT.md`](./docs/DX-REPORT.md) |
 
-**Prior work (disclosed):** OpenVenue began as an earlier tokenized-stock desk prototype. For Monad Blitz the product was rewritten around Monad as home chain — fees, Park, AppKit, and OpenVenueDesk land on Monad; the compare/execute UX was carried forward and extended.
-
 ---
 
 ## What did you build?
@@ -619,4 +617,4 @@ Monadv4/
 
 ## License
 
-Proprietary — all rights reserved. Not open source.
+MIT — see [`LICENSE`](./LICENSE).
