@@ -5,6 +5,7 @@
 Say you want NVDA. OpenVenue compares issuer venues (**Anchored** on Monad, plus live **bStocks** / **Ondo** / **xStocks** where listed), scores the best path under US market hours, opens MetaMask for the fill, and settles **platform fees on Monad**. When equity venues are quiet, it parks idle **USDC** into **Aave V3** on Monad.
 
 
+
 | | |
 | --- | --- |
 | GitHub | [github.com/AmaanSayyad/OpenVenue](https://github.com/AmaanSayyad/OpenVenue) |
