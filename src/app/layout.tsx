@@ -49,7 +49,10 @@ export const metadata: Metadata = {
     url: SITE_URL,
     siteName: "OpenVenue",
   },
-  authors: [{ name: "AmaanSayyad", url: REPO_URL }],
+  authors: [
+    { name: "Amaan Sayyad", url: REPO_URL },
+    { name: "Shivam Sharma" },
+  ],
 };
 
 export const viewport: Viewport = {

@@ -1,7 +1,8 @@
 # Monad Blitz Mumbai · Devcon Edition
 
 **Event:** [Monad Blitz Mumbai](https://monad.xyz/developers/hackathons) — 4 Nov 2026  
-**Prize pool:** US$5,000 · **Teams:** 2–3 · **Rule:** ship a working MVP **on Monad**
+**Prize pool:** US$5,000 · **Teams:** 2–3 · **Rule:** ship a working MVP **on Monad**  
+**Team:** Amaan Sayyad · Shivam Sharma
 
 ## What we shipped (OpenVenue)
 
@@ -38,7 +39,7 @@ OpenVenue is a **tokenized-stock desk whose home chain is Monad**.
   - Pitch: https://app.chroniclehq.com/amaan-s-workspace/openvenue-monad  
   - Demo: https://drive.google.com/drive/folders/1TuNcIJzfz2zBeFZEqPaOEqWkbUR-vCXw?usp=sharing  
   - Tweet: https://x.com/amaanbiz/status/2117954547817828767
-- [ ] Team of 2–3 registered for Blitz
+- [x] Team of 2–3 registered for Blitz (Amaan Sayyad · Shivam Sharma)
 - [ ] Live demo for judges
 
 ## References

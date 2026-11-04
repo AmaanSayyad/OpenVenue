@@ -8,6 +8,7 @@ Say you want NVDA. OpenVenue compares issuer venues (**Anchored** on Monad, plus
 
 | | |
 | --- | --- |
+| Team | Amaan Sayyad · Shivam Sharma |
 | GitHub | [github.com/AmaanSayyad/OpenVenue](https://github.com/AmaanSayyad/OpenVenue) |
 | Live | [openvenue.xyz](https://openvenue.xyz) |
 | Desk (mainnet) | [`0xBdb5…aD40`](https://monadvision.com/address/0xBdb5bDc633Dec3F7D288C1b93b775A80fFE1aD40) |
@@ -585,6 +586,7 @@ Monadv4/
 
 | Resource | URL |
 | --- | --- |
+| Team | Amaan Sayyad · Shivam Sharma |
 | GitHub | https://github.com/AmaanSayyad/OpenVenue |
 | Live | https://openvenue.xyz |
 | Hackathon notes | [`docs/HACKATHON.md`](./docs/HACKATHON.md) |

@@ -4,6 +4,9 @@ export const SITE_URL = "https://openvenue.xyz";
 /** Public GitHub source. */
 export const REPO_URL = "https://github.com/AmaanSayyad/OpenVenue";
 
+/** Blitz team. */
+export const TEAM = ["Amaan Sayyad", "Shivam Sharma"] as const;
+
 /** Pitch deck (Chronicle). */
 export const PITCH_DECK_URL =
   "https://app.chroniclehq.com/amaan-s-workspace/openvenue-monad";

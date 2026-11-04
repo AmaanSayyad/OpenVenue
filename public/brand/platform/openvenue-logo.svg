@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" fill="#FFFFFF"/>
+  <g transform="translate(512 420)" fill="none" stroke="#111111" stroke-width="14">
+    <circle r="170"/>
+    <circle r="115"/>
+    <circle r="60"/>
+  </g>
+  <circle cx="512" cy="420" r="18" fill="#111111"/>
+  <text x="512" y="720" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="96" font-weight="500" fill="#111111" letter-spacing="-2">OpenVenue</text>
+</svg>

@@ -6,7 +6,8 @@
 > Project: OpenVenue — session-aware tokenized-stock aggregator with **Monad as home base**  
 > Pitch deck: https://app.chroniclehq.com/amaan-s-workspace/openvenue-monad  
 > Demo video: https://drive.google.com/drive/folders/1TuNcIJzfz2zBeFZEqPaOEqWkbUR-vCXw?usp=sharing  
-> Tweet: https://x.com/amaanbiz/status/2117954547817828767
+> Tweet: https://x.com/amaanbiz/status/2117954547817828767  
+> Team: Amaan Sayyad · Shivam Sharma
 
 ## Product (Monad)
 
@@ -65,4 +66,4 @@
 - [x] Deployed or local MVP on Monad
 - [x] Pitch + demo video
 - [x] Verified contracts on Monad
-- [ ] Blitz team registration (2–3)
+- [x] Blitz team registration (Amaan Sayyad · Shivam Sharma)
