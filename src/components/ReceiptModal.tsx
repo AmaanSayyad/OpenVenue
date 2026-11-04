@@ -1,0 +1,234 @@
+"use client";
+
+import { useEffect, useState, type ReactNode } from "react";
+import clsx from "clsx";
+import type { TradeReceipt } from "@/lib/venue/receipts";
+import { kindLabel } from "@/lib/venue/types";
+import type { WrapperKind } from "@/lib/venue/types";
+import { copyShareReceipt } from "@/lib/venue/shareReceipt";
+import { formatWalletError } from "@/lib/venue/errors";
+import { VendorName } from "@/components/VendorMark";
+
+const SESSION: Record<string, string> = {
+  open: "Regular hours",
+  pre_market: "Pre-market",
+  after_hours: "After hours",
+  closed: "Overnight",
+  weekend: "Weekend",
+};
+
+function sessionLabel(state?: string) {
+  if (!state) return "-";
+  return SESSION[state] || state.replaceAll("_", " ");
+}
+
+function plainFailure(reason: string) {
+  if (reason.toLowerCase().includes("simulation gate")) {
+    return "The simulation gate stopped the trade before it was sent.";
+  }
+  return formatWalletError(reason, "The trade did not go through.");
+}
+
+function headline(receipt: TradeReceipt) {
+  const name = receipt.symbol || receipt.ticker;
+  if (receipt.status === "failed") return `${name} didn’t fill`;
+  if (receipt.status === "confirmed") {
+    return receipt.side === "sell" ? `Sold ${name}` : `Bought ${name}`;
+  }
+  if (receipt.side === "sell") return `Selling ${name}`;
+  if (receipt.side === "approve") return `Approved ${name}`;
+  if (receipt.side === "park") return `Parked ${name}`;
+  return `Buying ${name}`;
+}
+
+export function ReceiptModal({
+  receipt,
+  onClose,
+}: {
+  receipt: TradeReceipt | null;
+  onClose: () => void;
+}) {
+  const [shareMsg, setShareMsg] = useState<string | null>(null);
+  useEffect(() => {
+    if (!receipt) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [receipt, onClose]);
+
+  if (!receipt) return null;
+
+  async function share() {
+    if (!receipt) return;
+    const res = await copyShareReceipt(receipt);
+    setShareMsg(
+      res.shared
+        ? "Shared"
+        : `Copied · ${res.url.replace(/^https?:\/\//, "")}`,
+    );
+  }
+
+  const failed = receipt.status === "failed";
+  const confirmed = receipt.status === "confirmed";
+  const parked = receipt.side === "park";
+  const apy =
+    receipt.notes?.find((n) => /^apy\b/i.test(n))?.replace(/^APY\s*/i, "") ||
+    null;
+  const sim =
+    receipt.failReason?.toLowerCase().includes("simulation gate")
+      ? "Blocked"
+      : receipt.simOk == null
+        ? null
+        : receipt.simOk
+          ? "Passed"
+          : "Failed";
+
+  const rows: Array<[string, ReactNode] | null> = parked
+    ? [
+        ["Pool", receipt.ticker || "USDC"],
+        ["Protocol", receipt.vendor ? <VendorName name={receipt.vendor} /> : null],
+        ["Rate", apy],
+        ["Network", "Monad"],
+        ["Session", receipt.sessionState ? sessionLabel(receipt.sessionState) : null],
+      ]
+    : [
+        [
+          "Wrapper",
+          receipt.wrapperKind
+            ? kindLabel(receipt.wrapperKind as WrapperKind)
+            : null,
+        ],
+        ["Mode", receipt.mode || null],
+        ["Vendor", receipt.vendor ? <VendorName name={receipt.vendor} /> : null],
+        ["Session", receipt.sessionState ? sessionLabel(receipt.sessionState) : null],
+        ["Simulation", sim],
+      ];
+  const filledRows = rows.filter(
+    (row): row is [string, ReactNode] => row != null && row[1] != null && row[1] !== "",
+  );
+
+  return (
+    <div
+      className="fixed inset-0 z-[80] flex items-end justify-center bg-black/45 p-4 backdrop-blur-[2px] sm:items-center"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="receipt-title"
+        className="w-full max-w-[420px] rounded-[28px] bg-white p-6 shadow-[0_24px_80px_rgba(0,0,0,0.18)]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <span
+            className={clsx(
+              "rounded-full px-2.5 py-1 text-[12px] font-semibold",
+              failed && "bg-[#fdecee] text-[#c62828]",
+              confirmed && "bg-[#e7f6ee] text-[#0b7a45]",
+              !failed && !confirmed && "bg-[var(--bg-muted)] text-[var(--ink)]",
+            )}
+          >
+            {failed ? "Failed" : confirmed ? "Filled" : "Submitted"}
+          </span>
+          <button
+            type="button"
+            className="text-sm font-medium text-[var(--ink-soft)] hover:text-[var(--ink)]"
+            onClick={onClose}
+          >
+            Close
+          </button>
+        </div>
+
+        <h3 id="receipt-title" className="display mt-4 text-[28px] leading-none tracking-tight">
+          {headline(receipt)}
+        </h3>
+        <p className="mt-2 text-sm text-[var(--ink-soft)]">
+          {parked ? "Earn" : receipt.side === "sell" ? "Sell" : receipt.side === "buy" ? "Buy" : "Approve"}{" "}
+          · {receipt.ticker}
+        </p>
+
+        <div className="mt-5 flex items-end justify-between gap-3 rounded-[18px] bg-[var(--bg-muted)] px-4 py-4">
+          <div>
+            <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--ink-soft)]">
+              Amount
+            </div>
+            <div className="mt-1 text-[20px] font-semibold tabular-nums">
+              {receipt.amountLabel}
+            </div>
+          </div>
+          <div className="pb-1 text-[var(--ink-soft)]">→</div>
+          <div className="text-right">
+            <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--ink-soft)]">
+              {parked ? "Rate" : "Est. out"}
+            </div>
+            <div className="mt-1 text-[20px] font-semibold tabular-nums">
+              {parked ? apy || "Vault shares" : receipt.outAmountHuman || "-"}
+            </div>
+          </div>
+        </div>
+
+        <dl className="mt-4">
+          {filledRows.map(([label, value]) => (
+            <div
+              key={label}
+              className="flex items-center justify-between gap-4 border-b border-black/[0.05] py-2.5 text-[14px]"
+            >
+              <dt className="text-[var(--ink-soft)]">{label}</dt>
+              <dd className="font-medium">{value}</dd>
+            </div>
+          ))}
+        </dl>
+
+        {receipt.failReason && (
+          <div className="mt-4 rounded-[16px] bg-[#fdecee] px-4 py-3">
+            <p className="text-sm font-medium text-[#9b1c1c]">
+              {plainFailure(receipt.failReason)}
+            </p>
+            <p className="mt-1 text-[12px] leading-relaxed text-[#9b1c1c]/80">
+              {receipt.failReason}
+            </p>
+          </div>
+        )}
+
+        {receipt.txHash && (
+          <a
+            href={
+              receipt.mode === "RFQ"
+                ? undefined
+                : `https://testnet.monadvision.com/tx/${receipt.txHash}`
+            }
+            target="_blank"
+            rel="noreferrer"
+            className={clsx(
+              "mt-4 block truncate rounded-xl bg-[var(--bg-muted)] px-3 py-2 text-xs",
+              receipt.mode !== "RFQ" && "underline",
+            )}
+          >
+            {receipt.txHash}
+          </a>
+        )}
+
+        {(receipt.notes || []).filter((n) => !parked || !/^apy\b/i.test(n)).length > 0 && (
+          <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-[var(--ink-soft)]">
+            {receipt.notes!
+              .filter((n) => !parked || !/^apy\b/i.test(n))
+              .map((n) => (
+                <li key={n}>{n}</li>
+              ))}
+          </ul>
+        )}
+
+        <div className="mt-5 flex gap-2">
+          <button type="button" className="btn btn-ghost flex-1" onClick={share}>
+            {shareMsg || "Share"}
+          </button>
+          <button type="button" className="btn btn-primary flex-1" onClick={onClose}>
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
