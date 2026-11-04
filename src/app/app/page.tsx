@@ -915,10 +915,10 @@ function AppPageInner() {
       execChain === BSC_CHAIN_ID &&
       tradeSide === "buy" &&
       Number(tradeAmount) > 0 &&
-      Number(tradeAmount) < 1
+      Number(tradeAmount) < 0.2
     ) {
       setError(
-        "This venue spends USDT on BNB Chain (not Monad USDC). Use at least ~1 USDT — smaller hops usually revert in MetaMask.",
+        "This venue spends USDT on BNB Chain (not Monad USDC). Use at least ~0.2 USDT — tinier hops often revert in MetaMask.",
       );
       return false;
     }
