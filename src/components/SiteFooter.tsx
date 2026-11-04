@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { DEMO_VIDEO_URL, PITCH_DECK_URL } from "@/lib/site";
+import { DEMO_VIDEO_URL, PITCH_DECK_URL, TWEET_URL } from "@/lib/site";
 
 export function SiteFooter() {
   return (
@@ -59,7 +59,7 @@ export function SiteFooter() {
           </div>
           <div className="flex items-center gap-5">
             <a
-              href="https://x.com/amaanbiz"
+              href={TWEET_URL}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="X"

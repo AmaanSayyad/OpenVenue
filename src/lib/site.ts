@@ -12,6 +12,10 @@ export const PITCH_DECK_URL =
 export const DEMO_VIDEO_URL =
   "https://drive.google.com/drive/folders/1TuNcIJzfz2zBeFZEqPaOEqWkbUR-vCXw?usp=sharing";
 
+/** Launch tweet. */
+export const TWEET_URL =
+  "https://x.com/amaanbiz/status/2117954547817828767";
+
 /** Runtime app origin - env in prod, localhost when developing. */
 export function appOrigin() {
   return process.env.NEXT_PUBLIC_APP_URL || SITE_URL;

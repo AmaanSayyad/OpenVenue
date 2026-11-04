@@ -36,7 +36,8 @@ OpenVenue is a **tokenized-stock desk whose home chain is Monad**.
 - [x] Smart contract deployed + verified (OpenVenueDesk)
 - [x] Pitch / demo materials linked from README  
   - Pitch: https://app.chroniclehq.com/amaan-s-workspace/openvenue-monad  
-  - Demo: https://drive.google.com/drive/folders/1TuNcIJzfz2zBeFZEqPaOEqWkbUR-vCXw?usp=sharing
+  - Demo: https://drive.google.com/drive/folders/1TuNcIJzfz2zBeFZEqPaOEqWkbUR-vCXw?usp=sharing  
+  - Tweet: https://x.com/amaanbiz/status/2117954547817828767
 - [ ] Team of 2–3 registered for Blitz
 - [ ] Live demo for judges
 

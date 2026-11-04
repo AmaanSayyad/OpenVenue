@@ -7,12 +7,13 @@ Say you want NVDA. OpenVenue compares issuer venues (**Anchored** on Monad, plus
 
 | | |
 | --- | --- |
-| Source | [github.com/AmaanSayyad/OpenVenue](https://github.com/AmaanSayyad/OpenVenue) |
+| GitHub | [github.com/AmaanSayyad/OpenVenue](https://github.com/AmaanSayyad/OpenVenue) |
 | Live | [openvenue.xyz](https://openvenue.xyz) |
 | Desk (mainnet) | [`0xBdb5…aD40`](https://monadvision.com/address/0xBdb5bDc633Dec3F7D288C1b93b775A80fFE1aD40) |
 | Desk (testnet) | [`0xCFF0…34Fa`](https://testnet.monadvision.com/address/0xCFF046c4bCBab4f25254Fd41d94f8AcD7a3334Fa) |
 | Pitch deck | [Chronicle — OpenVenue Monad](https://app.chroniclehq.com/amaan-s-workspace/openvenue-monad) |
 | Demo video | [Google Drive folder](https://drive.google.com/drive/folders/1TuNcIJzfz2zBeFZEqPaOEqWkbUR-vCXw?usp=sharing) |
+| Tweet | [x.com/amaanbiz/status/…](https://x.com/amaanbiz/status/2117954547817828767) |
 | Blitz notes | [`docs/HACKATHON.md`](./docs/HACKATHON.md) · [`docs/DX-REPORT.md`](./docs/DX-REPORT.md) |
 
 **Prior work (disclosed):** OpenVenue began as an earlier tokenized-stock desk prototype. For Monad Blitz the product was rewritten around Monad as home chain — fees, Park, AppKit, and OpenVenueDesk land on Monad; the compare/execute UX was carried forward and extended.
@@ -208,31 +209,88 @@ OpenVenue treats “buy NVDA” as **one intent** — compare venues, execute th
 
 ## Architecture
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  Browser (Next.js App Router)                                   │
-│  Explore · Trade · Portfolio · Orders · Park · Agent · PWA      │
-│  wagmi / viem / AppKit  →  Monad home (143 / 10143)             │
-│  MetaMask may switch to issuer venue for the stock fill         │
-└────────────────────────────┬────────────────────────────────────┘
-                             │ /api/venue/*
-┌────────────────────────────▼────────────────────────────────────┐
-│  OpenVenue API routes (server)                                  │
-│  resolve · build · spot · park · stats · chart · agent · x402   │
-└───────┬───────────────────────┬───────────────────┬─────────────┘
-        │                       │                   │
-        ▼                       ▼                   ▼
-  Issuer / market            Venue execution     Monad home
-  search · compare           Pancake / RFQ /     fees · Park Aave
-  klines · Yahoo vol         MetaMask tx build   Desk · USDC/MON
-        │
-        └──────────────► Session scorer + router (src/lib/venue/)
-                         └──────────────► bestQuote + fallback park
+OpenVenue is a **Monad-home desk**: the UI, fee sink, Park, and ledger live on Monad; the router may send the stock fill to whichever issuer venue actually has liquidity.
+
+### System overview
+
+```mermaid
+flowchart TB
+  subgraph Client["Client — Next.js / App Router"]
+    UI["Desk UI<br/>Explore · Trade · Portfolio · Orders · Park · Agent"]
+    Wallet["Reown AppKit + wagmi / viem<br/>MetaMask"]
+  end
+
+  subgraph API["OpenVenue API — /api/venue/*"]
+    Resolve["resolve · ladder · stats · chart"]
+    Build["build · spot · rfq"]
+    ParkAPI["park · portfolio · agent · x402"]
+    Router["Session scorer<br/>src/lib/venue/router.ts"]
+  end
+
+  subgraph MonadHome["Monad home — 143 / 10143"]
+    Fees["Platform fee recipient"]
+    Aave["Aave V3 USDC Park"]
+    Desk["OpenVenueDesk<br/>verified ledger"]
+    Uni["Uniswap V3 MON ↔ USDC"]
+  end
+
+  subgraph Issuers["Issuer venues — when listed"]
+    Anchored["Anchored"]
+    BStocks["bStocks"]
+    Ondo["Ondo"]
+    XStocks["xStocks"]
+  end
+
+  UI --> Wallet
+  UI --> Resolve
+  UI --> Build
+  UI --> ParkAPI
+  Resolve --> Router
+  Router --> Issuers
+  Build --> Wallet
+  Wallet -->|"stock fill if needed"| Issuers
+  Wallet -->|"always"| Fees
+  Wallet --> Aave
+  Wallet --> Desk
+  Wallet --> Uni
+  ParkAPI --> Aave
 ```
 
-### How it works
+### Layer map
 
-The desk never holds the user’s key. Server routes resolve and build payloads; the wallet signs after the user confirms. Monetization (platform fee) and Park always target **Monad**. Stock wrappers that only trade on another venue still fill there — then the fee hop returns home.
+```text
+┌──────────────────────────────────────────────────────────────────────┐
+│  Presentation                                                         │
+│  /app desk · landing · marketplace · receipts · PWA                   │
+│  AppKit wallet · fee preview · quote TTL · fill status                │
+└───────────────────────────────┬──────────────────────────────────────┘
+                                │ HTTPS
+┌───────────────────────────────▼──────────────────────────────────────┐
+│  Application API                                                      │
+│  resolve → score wrappers by session / spread / fill quality          │
+│  build / spot → unsigned txs for MetaMask                             │
+│  park → Aave supply / withdraw payloads                               │
+│  agent / x402 → same resolve, machine-readable                        │
+└───────┬───────────────────────┬───────────────────────┬──────────────┘
+        │                       │                       │
+        ▼                       ▼                       ▼
+┌───────────────┐     ┌─────────────────┐     ┌─────────────────────┐
+│ Market data   │     │ Issuer execution│     │ Monad settlement    │
+│ RWA search    │     │ DEX / RFQ path  │     │ Fees · Park · Desk  │
+│ klines/Yahoo  │     │ chain switch OK │     │ USDC / MON / notes  │
+└───────────────┘     └─────────────────┘     └─────────────────────┘
+```
+
+### Trust boundary
+
+| Layer | Holds keys? | Role |
+| --- | --- | --- |
+| Browser / MetaMask | User only | Signs fills, fees, Park |
+| Next.js API | No user keys | Resolve, quote, build calldata |
+| OpenVenueDesk | Contract owner only for withdraw | On-chain notes + optional MON fee sink |
+| Aave V3 (Monad) | Protocol | USDC supply / aUSDC |
+
+The desk never custodies funds. Server routes resolve and build payloads; the wallet signs after the user confirms. Monetization (platform fee) and Park always target **Monad**. If the best stock wrapper lives on an issuer venue, MetaMask switches for the fill — then the fee hop returns home.
 
 ```mermaid
 sequenceDiagram
@@ -261,7 +319,7 @@ sequenceDiagram
 | `src/lib/venue/router.ts` | Session-aware scoring across wrappers |
 | `src/lib/venue/session.ts` | US equity open / pre / after / weekend |
 | `src/lib/venue/issuers.ts` | Issuer registry (Anchored / bStocks / Ondo / xStocks) |
-| `src/lib/monad/*` | Chains, fees, Park (Aave), contracts, venues |
+| `src/lib/monad/*` | Chains, fees, Park (Aave), contracts, Uniswap |
 | `src/lib/bsc/*` | Issuer-venue execution helpers when a fill leaves Monad |
 | `src/app/api/venue/*` | Thin HTTP surface for the desk + agent |
 | `contracts/` | OpenVenueDesk (Foundry) + deployments |
@@ -387,7 +445,7 @@ Hackathon posture: **no custody**, spot only, users pay gas + venue fees; OpenVe
 2. **Monad ecosystem** — Home-chain product for tokenized stocks; deep-link from `/marketplace` and `/how-it-works`.
 3. **Creator / agent loops** — Shareable receipts (`/receipt/[id]`) and PWA install for mobile desk habit.
 4. **Wrapper issuers** — Surface attestation + corporate actions so Anchored / Ondo / bStock / xStock users land in one UI.
-5. **Content** — How-it-works page, [pitch deck](https://app.chroniclehq.com/amaan-s-workspace/openvenue-monad) + [demo video](https://drive.google.com/drive/folders/1TuNcIJzfz2zBeFZEqPaOEqWkbUR-vCXw?usp=sharing), DX write-up as trust collateral.
+5. **Content** — How-it-works page, [pitch deck](https://app.chroniclehq.com/amaan-s-workspace/openvenue-monad), [demo video](https://drive.google.com/drive/folders/1TuNcIJzfz2zBeFZEqPaOEqWkbUR-vCXw?usp=sharing), [tweet](https://x.com/amaanbiz/status/2117954547817828767), DX write-up as trust collateral.
 
 ---
 
@@ -527,6 +585,8 @@ Monadv4/
 
 | Resource | URL |
 | --- | --- |
+| GitHub | https://github.com/AmaanSayyad/OpenVenue |
+| Live | https://openvenue.xyz |
 | Hackathon notes | [`docs/HACKATHON.md`](./docs/HACKATHON.md) |
 | DX notes | [`docs/DX-REPORT.md`](./docs/DX-REPORT.md) |
 | How it works (app) | `/how-it-works` |
@@ -534,6 +594,7 @@ Monadv4/
 | Desk | `/app` |
 | Pitch deck | https://app.chroniclehq.com/amaan-s-workspace/openvenue-monad |
 | Demo video | https://drive.google.com/drive/folders/1TuNcIJzfz2zBeFZEqPaOEqWkbUR-vCXw?usp=sharing |
+| Tweet | https://x.com/amaanbiz/status/2117954547817828767 |
 | Monad docs | https://docs.monad.xyz |
 | Blitz resources | https://blitz.devnads.com/resources |
 

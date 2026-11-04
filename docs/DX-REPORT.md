@@ -5,7 +5,8 @@
 > Hackathon: **Monad Blitz Mumbai · Devcon Edition** (4 Nov 2026)  
 > Project: OpenVenue — session-aware tokenized-stock aggregator with **Monad as home base**  
 > Pitch deck: https://app.chroniclehq.com/amaan-s-workspace/openvenue-monad  
-> Demo video: https://drive.google.com/drive/folders/1TuNcIJzfz2zBeFZEqPaOEqWkbUR-vCXw?usp=sharing
+> Demo video: https://drive.google.com/drive/folders/1TuNcIJzfz2zBeFZEqPaOEqWkbUR-vCXw?usp=sharing  
+> Tweet: https://x.com/amaanbiz/status/2117954547817828767
 
 ## Product (Monad)
 
