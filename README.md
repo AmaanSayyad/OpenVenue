@@ -14,6 +14,7 @@ Say you want NVDA. OpenVenue compares issuer venues (**Anchored** on Monad, plus
 | Desk (testnet) | [`0xCFF0…34Fa`](https://testnet.monadvision.com/address/0xCFF046c4bCBab4f25254Fd41d94f8AcD7a3334Fa) |
 | Pitch deck | [Chronicle — OpenVenue Monad](https://app.chroniclehq.com/amaan-s-workspace/openvenue-monad) |
 | Demo video | [Google Drive folder](https://drive.google.com/drive/folders/1TuNcIJzfz2zBeFZEqPaOEqWkbUR-vCXw?usp=sharing) |
+| Creative Ad Video | [Google Drive folder](https://drive.google.com/file/d/12rtNovkV10BZShgV5a4_k0TEUCS13Z_N/view?usp=drive_link) |
 | Tweet | [x.com/amaanbiz/status/…](https://x.com/amaanbiz/status/2117954547817828767) |
 | Blitz notes | [`docs/HACKATHON.md`](./docs/HACKATHON.md) · [`docs/DX-REPORT.md`](./docs/DX-REPORT.md) |
 
