@@ -1,0 +1,20 @@
+{
+  "name": "OpenVenue",
+  "short_name": "OpenVenue",
+  "description": "Session-aware tokenized stock desk on Monad - https://openvenue.xyz",
+  "start_url": "/app",
+  "id": "https://openvenue.xyz/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f7f7",
+  "theme_color": "#1d1d1d",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
