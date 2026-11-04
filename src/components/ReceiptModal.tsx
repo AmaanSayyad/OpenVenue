@@ -186,9 +186,6 @@ export function ReceiptModal({
             <p className="text-sm font-medium text-[#9b1c1c]">
               {plainFailure(receipt.failReason)}
             </p>
-            <p className="mt-1 text-[12px] leading-relaxed text-[#9b1c1c]/80">
-              {receipt.failReason}
-            </p>
           </div>
         )}
 

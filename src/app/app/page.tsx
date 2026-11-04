@@ -218,7 +218,7 @@ function AppPageInner() {
   const [ticker, setTicker] = useState("NVDA");
   const [amount, setAmount] = useState("15");
   const [parkAmount, setParkAmount] = useState("1");
-  const [slippage, setSlippage] = useState("1.5");
+  const [slippage, setSlippage] = useState("3");
   const [mev, setMev] = useState(true);
   const [requireSim, setRequireSim] = useState(true);
   const [session, setSession] = useState<{
@@ -859,7 +859,7 @@ function AppPageInner() {
     setReceipts(rNext);
     setError(
       txWatchChainId === BSC_CHAIN_ID
-        ? "This swap did not land on BNB Chain (dust size and low liquidity often revert). Try ≥1 USDT and higher slippage."
+        ? "This swap reverted on BNB Chain — price moved on a thin pool, or USDT balance/allowance was short. Refresh the quote and try 3–5% slippage."
         : "This trade did not land on Monad. Resolve again and sign before the quote expires.",
     );
   }, [failed, txHash, fillError, txWatchChainId]);
@@ -1111,8 +1111,9 @@ function AppPageInner() {
         }
       }
 
-      if (json.allowancePending) {
-        setStatus("Refreshing the quote…");
+      // Always rebuild immediately before MetaMask — BSC minOut goes stale fast.
+      {
+        setStatus("Locking a fresh swap quote…");
         const again = new URLSearchParams({
           ticker: receiptBase.ticker,
           amount: tradeAmount.trim() || "1",
@@ -1140,6 +1141,8 @@ function AppPageInner() {
             quoteId: nextBest.route.quoteId,
             vendor: nextBest.route.vendorName,
             executionMode: nextBest.route.executionMode,
+            // Allowance already handled above — force sim on the swap itself
+            requireSimOk: requireSim,
           }),
         }).then((r) => r.json());
         if (!rebuilt.ok) throw new Error(rebuilt.error || "Rebuild failed");
@@ -1149,6 +1152,15 @@ function AppPageInner() {
 
       const tx = (json.swap as { tx?: Record<string, string> })?.tx;
       if (!tx?.to || !tx?.data) throw new Error("Swap tx missing");
+      if (json.simOk === false && requireSim) {
+        throw new Error(
+          (json.simulation as { error?: string; data?: { failReason?: string } })
+            ?.error ||
+            (json.simulation as { data?: { failReason?: string } })?.data
+              ?.failReason ||
+            "Simulation gate blocked this BNB Chain swap. Raise slippage and retry.",
+        );
+      }
 
       setStatus(
         mev
@@ -1203,7 +1215,7 @@ function AppPageInner() {
       if (fillReceipt.status !== "success") {
         throw new Error(
           execChain === BSC_CHAIN_ID
-            ? "Swap reverted on BNB Chain. Use ≥1 USDT and/or raise slippage."
+            ? "Swap reverted on BNB Chain after signing. Refresh and raise slippage to 3–5% — thin bStocks pools move between quote and inclusion."
             : "Swap reverted on Monad.",
         );
       }
@@ -2467,13 +2479,13 @@ function armedSpreadLimit(session: string | undefined, maxSpreadBps: number) {
 
       <details className="mt-4 rounded-2xl bg-[var(--bg-muted)] px-4 py-3">
         <summary className="cursor-pointer text-sm font-medium text-[var(--ink)]">
-          Slippage {slippage || "1.5"}%
+          Slippage {slippage || "3"}%
           <span className="ml-2 font-normal text-[var(--ink-soft)]">
             Simulation, MEV, quote refresh
           </span>
         </summary>
         <div className="mt-3 flex flex-wrap gap-2">
-          {["0.5", "1", "1.5", "3"].map((n) => (
+          {["1", "1.5", "3", "5"].map((n) => (
             <button
               key={n}
               type="button"

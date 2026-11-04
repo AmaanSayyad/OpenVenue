@@ -44,6 +44,22 @@ export function formatWalletError(
     return "The simulation gate stopped the trade before it was sent.";
   }
 
+  if (lower.includes("not enough usdt on bnb")) {
+    return raw.length < 200 ? raw : "Not enough USDT on BNB Chain for this trade.";
+  }
+
+  if (
+    lower.includes("insufficient_output") ||
+    lower.includes("price moved past slippage") ||
+    lower.includes("thin pool")
+  ) {
+    return "Price moved on BNB Chain. Raise slippage to 3–5% and confirm quickly.";
+  }
+
+  if (lower.includes("transfer_from_failed") || lower.includes("usdt transfer failed")) {
+    return "BNB Chain USDT transfer failed — check BSC USDT balance and Pancake allowance.";
+  }
+
   // Strip viem "Request Arguments:" dumps — keep first sentence only
   const cut = raw.split(/Request Arguments:|Details:|Version:/i)[0]?.trim();
   if (cut && cut.length > 0 && cut.length < 160) return cut;

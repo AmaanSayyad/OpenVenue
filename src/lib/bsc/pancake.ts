@@ -20,6 +20,7 @@ export const PANCAKE_ROUTER_V2 =
 const routerAbi = parseAbi([
   "function getAmountsOut(uint256 amountIn, address[] path) view returns (uint256[] amounts)",
   "function swapExactTokensForTokens(uint256 amountIn, uint256 amountOutMin, address[] path, address to, uint256 deadline) returns (uint256[] amounts)",
+  "function swapExactTokensForTokensSupportingFeeOnTransferTokens(uint256 amountIn, uint256 amountOutMin, address[] path, address to, uint256 deadline)",
   "function swapExactTokensForETH(uint256 amountIn, uint256 amountOutMin, address[] path, address to, uint256 deadline) returns (uint256[] amounts)",
   "function swapExactETHForTokens(uint256 amountOutMin, address[] path, address to, uint256 deadline) payable returns (uint256[] amounts)",
 ]);
@@ -46,7 +47,8 @@ async function pickPath(
         args: [amountIn, path],
       });
       const out = amounts[amounts.length - 1];
-      if (out > 0n) cands.push({ path, out });
+      // Ignore dust quotes that round to ~0 for users
+      if (out > 1000n) cands.push({ path, out });
     } catch {
       /* skip */
     }
@@ -63,6 +65,11 @@ async function pickPath(
   if (!cands.length) return null;
   cands.sort((a, b) => (a.out > b.out ? -1 : a.out < b.out ? 1 : 0));
   return cands[0].path;
+}
+
+function involvesUsdt(path: Address[]) {
+  const u = USDT_BSC.toLowerCase();
+  return path.some((p) => p.toLowerCase() === u);
 }
 
 export async function quotePancake(params: {
@@ -102,21 +109,23 @@ export async function buildPancakeSwap(params: {
   const quoted = await quotePancake({ tokenIn, tokenOut, amountIn });
   if (!quoted.ok) return quoted;
 
-  const slip = Math.max(0.1, Number(params.slippagePercent || "1.5"));
-  const minOut =
-    (quoted.amountOut * BigInt(Math.floor((100 - slip) * 100))) / 10000n;
+  // Multi-hop (via WBNB) moves more between quote and inclusion — floor at 3%.
+  const userSlip = Math.max(0.1, Number(params.slippagePercent || "1.5"));
+  const multiHop = quoted.path.length > 2;
+  const slip = multiHop ? Math.max(userSlip, 3) : userSlip;
+  const bps = BigInt(Math.floor((100 - slip) * 100));
+  const minOut = (quoted.amountOut * bps) / 10000n;
   const deadline = BigInt(Math.floor(Date.now() / 1000) + 600);
+  const to = params.userWalletAddress as Address;
 
+  // BSC-USD / fee-on-transfer tokens need the supporting router entrypoint.
+  const useFeeOnTransfer = involvesUsdt(quoted.path);
   const data = encodeFunctionData({
     abi: routerAbi,
-    functionName: "swapExactTokensForTokens",
-    args: [
-      amountIn,
-      minOut,
-      quoted.path,
-      params.userWalletAddress as Address,
-      deadline,
-    ],
+    functionName: useFeeOnTransfer
+      ? "swapExactTokensForTokensSupportingFeeOnTransferTokens"
+      : "swapExactTokensForTokens",
+    args: [amountIn, minOut, quoted.path, to, deadline],
   });
 
   return {
@@ -129,7 +138,9 @@ export async function buildPancakeSwap(params: {
       amount: params.amount,
       userWalletAddress: params.userWalletAddress,
       amountOut: quoted.amountOut.toString(),
+      amountOutMin: minOut.toString(),
       path: quoted.path,
+      slippageApplied: slip,
       tx: {
         to: PANCAKE_ROUTER_V2,
         data,
@@ -138,6 +149,46 @@ export async function buildPancakeSwap(params: {
       },
     },
   };
+}
+
+/** eth_call the built swap so we fail before MetaMask when possible. */
+export async function simulatePancakeTx(params: {
+  from: Address;
+  to: Address;
+  data: Hex;
+  value?: bigint;
+}) {
+  try {
+    await client.call({
+      account: params.from,
+      to: params.to,
+      data: params.data,
+      value: params.value,
+    });
+    return { ok: true as const };
+  } catch (err) {
+    const raw = err instanceof Error ? err.message : String(err);
+    let reason = "Swap would revert on BNB Chain";
+    if (/TRANSFER_FROM_FAILED/i.test(raw)) {
+      reason =
+        "BNB Chain USDT transfer failed — check USDT balance on BSC (not Monad USDC) and Pancake allowance.";
+    } else if (/INSUFFICIENT_OUTPUT|excessive|K\b|EXPIRED/i.test(raw)) {
+      reason =
+        "Price moved past slippage on this thin pool. Raise slippage to 3–5% and refresh the quote.";
+    } else if (/insufficient funds|gas/i.test(raw)) {
+      reason = "Not enough BNB for gas on BNB Chain.";
+    }
+    return { ok: false as const, error: reason, raw };
+  }
+}
+
+export async function readBscUsdtBalance(owner: Address) {
+  return client.readContract({
+    address: USDT_BSC,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: [owner],
+  });
 }
 
 export async function buildPancakeApprove(params: {

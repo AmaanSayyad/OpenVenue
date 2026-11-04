@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
-import { createPublicClient, decodeFunctionData, erc20Abi, http, type Address } from "viem";
+import {
+  createPublicClient,
+  decodeFunctionData,
+  erc20Abi,
+  formatUnits,
+  http,
+  type Address,
+} from "viem";
 import { bsc } from "viem/chains";
 import {
   buildSwap,
@@ -14,7 +21,11 @@ import {
   needsAllowance,
   WMON,
 } from "@/lib/monad/uniswap";
-import { needsPancakeAllowance } from "@/lib/bsc/pancake";
+import {
+  needsPancakeAllowance,
+  readBscUsdtBalance,
+  simulatePancakeTx,
+} from "@/lib/bsc/pancake";
 
 const homeChain = defaultChainId() === 143 ? monadMainnet : monadTestnet;
 const monadClient = createPublicClient({
@@ -87,7 +98,7 @@ export async function POST(req: Request) {
       toTokenAddress: body.toTokenAddress,
       amount: body.amount,
       userWalletAddress: body.userWalletAddress,
-      slippagePercent: body.slippagePercent ?? "1.5",
+      slippagePercent: body.slippagePercent ?? "3",
       vendor: body.vendor,
       executionChainId: execChain,
     });
@@ -99,33 +110,13 @@ export async function POST(req: Request) {
       );
     }
 
-    let simulation = null;
+    let simulation: {
+      ok: boolean;
+      error?: string;
+      data?: { failReason?: string; status?: string };
+    } | null = null;
     const tx = (swap.data as { tx?: Record<string, string>; to?: string; data?: string })
       ?.tx;
-    if (body.simulate !== false && tx?.to && tx?.data && execChain !== 56) {
-      simulation = await simulateEvmTx({
-        from: body.userWalletAddress,
-        to: tx.to,
-        data: tx.data,
-        value: tx.value || "0",
-        gas: tx.gas,
-        gasPrice: tx.gasPrice,
-      });
-    }
-
-    const failReason = simulation
-      ? simulation.ok
-        ? (simulation.data as { failReason?: string })?.failReason || ""
-        : "error" in simulation
-          ? String(simulation.error)
-          : ""
-      : "";
-    const simOk =
-      execChain === 56 ||
-      !simulation ||
-      (simulation.ok &&
-        (simulation.data as { status?: string })?.status !== "FAIL" &&
-        (simulation.data as { status?: string })?.status !== "FAILED");
 
     let allowancePending = false;
     const nativePay =
@@ -142,12 +133,84 @@ export async function POST(req: Request) {
         owner: body.userWalletAddress,
         amount: BigInt(body.amount),
       });
-    } else if (
+    }
+
+    // Balance gate for BSC USDT buys — catch "0 USDT in MetaMask" before signing
+    if (
+      execChain === 56 &&
+      from.toLowerCase() === USDT_BSC.toLowerCase()
+    ) {
+      try {
+        const bal = await readBscUsdtBalance(body.userWalletAddress as Address);
+        if (bal < BigInt(body.amount)) {
+          return NextResponse.json(
+            {
+              ok: false,
+              error: `Not enough USDT on BNB Chain. Wallet has ${formatUnits(bal, 18)} USDT; this trade needs ${formatUnits(BigInt(body.amount), 18)}. (Monad USDC cannot pay this hop.)`,
+            },
+            { status: 400 },
+          );
+        }
+      } catch {
+        /* RPC flake — continue; on-chain will still enforce */
+      }
+    }
+
+    if (body.simulate !== false && tx?.to && tx?.data) {
+      if (execChain === 56) {
+        if (!allowancePending) {
+          const pancakeSim = await simulatePancakeTx({
+            from: body.userWalletAddress as Address,
+            to: tx.to as Address,
+            data: tx.data as `0x${string}`,
+            value: tx.value ? BigInt(tx.value) : 0n,
+          });
+          simulation = pancakeSim.ok
+            ? { ok: true, data: { status: "SUCCESS" } }
+            : {
+                ok: false,
+                error: pancakeSim.error,
+                data: { failReason: pancakeSim.error, status: "FAIL" },
+              };
+        }
+      } else {
+        const evmSim = await simulateEvmTx({
+          from: body.userWalletAddress,
+          to: tx.to,
+          data: tx.data,
+          value: tx.value || "0",
+          gas: tx.gas,
+          gasPrice: tx.gasPrice,
+        });
+        simulation = {
+          ok: !!evmSim.ok,
+          error: "error" in evmSim ? String(evmSim.error) : undefined,
+          data: evmSim.ok
+            ? (evmSim.data as { failReason?: string; status?: string })
+            : undefined,
+        };
+      }
+    }
+
+    const failReason = simulation
+      ? simulation.ok
+        ? simulation.data?.failReason || ""
+        : simulation.error || simulation.data?.failReason || ""
+      : "";
+    const simOk =
+      !simulation ||
+      (simulation.ok &&
+        simulation.data?.status !== "FAIL" &&
+        simulation.data?.status !== "FAILED");
+
+    if (
       !simOk &&
+      !allowancePending &&
       approve.ok &&
       approve.data &&
       "data" in approve.data &&
-      approve.data.data
+      approve.data.data &&
+      execChain !== 56
     ) {
       allowancePending =
         /allowance/i.test(failReason) ||
@@ -165,9 +228,7 @@ export async function POST(req: Request) {
       body.requireSimOk !== false &&
       simulation &&
       !simOk &&
-      !allowancePending &&
-      !liquid &&
-      execChain !== 56
+      !allowancePending
     ) {
       return NextResponse.json(
         {
@@ -195,10 +256,10 @@ export async function POST(req: Request) {
       approveError: approve.ok ? null : ("error" in approve ? approve.error : "approve failed"),
       swap: swap.data,
       simulation,
-      simOk: execChain === 56 || liquid ? true : simOk || allowancePending,
+      simOk: simOk || allowancePending,
       allowancePending,
       fromTokenAddress: from,
-      slippagePercent: body.slippagePercent ?? "1.5",
+      slippagePercent: body.slippagePercent ?? "3",
       liquid,
       feeSettlesOn: "monad",
     });
