@@ -1,0 +1,24 @@
+{
+  "OpenVenueDesk": {
+    "monad-testnet": {
+      "chainId": 10143,
+      "address": "0xCFF046c4bCBab4f25254Fd41d94f8AcD7a3334Fa",
+      "deployTx": "0x86816cb3aa69d1efd43b75050d61bc8154bf25e74c594beb90ee5f093e654013",
+      "deployer": "0xF7249B507F1f89Eaea5d694cEf5cb96F245Bc5b6",
+      "verified": true,
+      "sourcifyMatch": "match",
+      "explorer": "https://testnet.monadvision.com/address/0xCFF046c4bCBab4f25254Fd41d94f8AcD7a3334Fa",
+      "noteCountAfterSmoke": 20
+    },
+    "monad-mainnet": {
+      "chainId": 143,
+      "address": "0xBdb5bDc633Dec3F7D288C1b93b775A80fFE1aD40",
+      "deployTx": "0xdd914d807d105c1d2e182ca6b62e36eab1c7cee413abad7618428d2e7fd294f8",
+      "deployer": "0xF7249B507F1f89Eaea5d694cEf5cb96F245Bc5b6",
+      "verified": true,
+      "sourcifyMatch": "match",
+      "explorer": "https://monadvision.com/address/0xBdb5bDc633Dec3F7D288C1b93b775A80fFE1aD40",
+      "noteCountAfterSmoke": 20
+    }
+  }
+}
